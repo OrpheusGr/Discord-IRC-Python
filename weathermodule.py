@@ -154,6 +154,7 @@ def SetWeather(query, nick, hostorid):
         return ["success", "Your prefered location has been saved successfuly :)"]
 
 def wcolor(t, u):
+    c = "3"
     if u == "f":
         t = (t - 30) / 2
     st = str(t)
