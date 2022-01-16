@@ -1,14 +1,26 @@
 {
     "irc": {
-        "server": "",
-        "port": "6667",
-        "channel": "",
-        "nickname": "DiscordIRCBot",
-        "botowner": "",
-        "quitmsg": "Cya!"
+        "server": "irc.somenet.here",
+        "port": "6697",
+        "channel": "#channelhere",
+        "nickname": "ircnickhere",
+        "|Help| Change below value": "Set True or False to make the bot identify or not with NickServ. If True provide identify info below",
+        "identify": "False",
+        "|Help| Change below value": "if it's a network that uses different NickServ names. If you don't know what this is, leave as is",
+        "NickServName": "NickServ",
+        "|Help| Change below value": "To identify for a different nick than the nickname you've set above.",
+        "NickServAcc": "NickServAccHere",
+        "NickServPass": "passhere",
+        "botowner": "yourIRCnickHere",
+        "Help for chanservkick": "set 1 if you want the !kick etc commands to use a chanserv command instead of direct kick, if not set to 0",
+        "chanservkick": 1,
+        "quitmsg": "Using DiscordIRC Python Bot"
     },
     "discord": {
         "token": "",
+        "help for botops": "add the Discord User ID's (seperated by spaces) of users you want to use botop commamds (like !kick etc)",
+        "botops": "",
+        "help for botowner": "add your user ID"
         "botowner": "",
         "server": "",
         "channel": ""

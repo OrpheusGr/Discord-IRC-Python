@@ -92,3 +92,7 @@ ENV/
 # Custom
 settings.json
 log.txt
+countdict.txt 
+locationcache.txt 
+weatherlist.txt 
+usertags.txt
