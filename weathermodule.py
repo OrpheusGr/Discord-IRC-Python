@@ -158,14 +158,10 @@ def SetWeather(query, nick, hostorid):
         adduserw(nick, hostorid, findkey[0], findkey[1])
         return ["success", "Your prefered location has been saved successfuly :)"]
 
-<<<<<<< HEAD
-def wcolor(t, u, untpe):
-=======
 def wcolor(t, u):
     c = "3"
     if u == "f":
         t = (t - 30) / 2
->>>>>>> bd4f80a8c77afe44715d8df376a1007ae6749186
     st = str(t)
     if untpe == "temp":
         t = round0dec(t)
