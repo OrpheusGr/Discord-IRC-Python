@@ -51,7 +51,8 @@ def caller(nick, message):
             finalsorted = ""
             for tup in sorted_w:
                 if tup[0] != "botdummydict":
-                    cpair = "\x02" + tup[0] + "\x02" +  ": " +  str(tup[1]) + " • "
+                    newtup = tup[0][0] + "\u200b" + tup[0][1:]
+                    cpair = "[bold]" + newtup + "[bold]" +  ": " +  str(tup[1]) + " • "
                     finalsorted = finalsorted + cpair
             if finalsorted == "":
                 return ["error", "No stats for this word yet."]
@@ -83,7 +84,7 @@ def caller(nick, message):
         for keyw in countdict:
             for keykeyw in countdict[keyw]:
                 tcount = tcount + countdict[keyw][keykeyw]
-            wordlist = wordlist +  "\x02" + keyw + "\x02" + ": " +  str(tcount) + " • "
+            wordlist = wordlist +  "[bold]" + keyw + "[bold]" + ": " +  str(tcount) + " • "
             tcount = 0
         return ["success", wordlist]
 

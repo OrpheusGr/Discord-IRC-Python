@@ -14,7 +14,10 @@ settings = json.loads(f.read())
 f.close()
 misc = settings["misc"]
 apikeys = misc["weatherapikeys"].split()
-apikey = apikeys[0]
+if len(apikeys) == 0:
+    print("WeatherMod Log: You haven't added any AccuWeather API key in settings.json, thus the module will not work.")
+else:
+    apikey = apikeys[0]
 global retries
 retries = 0
 checkfiles = ["locationcache.txt", "weatherlist.txt"]
@@ -101,6 +104,8 @@ def GetConfig(nickhost):
 def GetLocId(query):
     global retries
     global apikey
+    if len(apikeys) == 0:
+         return ["error", "You haven't added any API key to settings.json thus the module will not work."]
     data = {"apikey": apikey, "q": query, "language": "en", "details": "false", "offset": 1}
     r = requests.get("http://dataservice.accuweather.com/locations/v1/search", params=data)
     load = json.loads(r.text)
@@ -153,32 +158,93 @@ def SetWeather(query, nick, hostorid):
         adduserw(nick, hostorid, findkey[0], findkey[1])
         return ["success", "Your prefered location has been saved successfuly :)"]
 
-def wcolor(t, u):
-    if u == "f":
-        t = (t - 30) / 2
+def wcolor(t, u, untpe):
     st = str(t)
-    if t <= -20:
-        c = "15"
-    if t < 0 and t >= -10:
-        c = "11"
-    if t > 0 and t <= 15:
-        c = "10"
-    if t > 15 and t <= 20:
-        c = "12"
-    if t > 20 and t < 27:
-        c = "8"
-    if t >= 27 and t <= 35:
-        c = "7"
-    if t > 35 and t <= 40:
-        c = "4"
-    if t > 40:
-        c = "4\x02"
-
+    if untpe == "temp":
+        t = round0dec(t)
+        if u == "f":
+            t = (t - 30) / 2
+        if t <= -20:
+            c = "15"
+        elif t <= 0 and t >= -21:
+            c = "11"
+        elif t > 0 and t <= 15:
+            c = "10"
+        elif t > 15 and t <= 20:
+            c = "12"
+        elif t > 20 and t < 27:
+            c = "08"
+        elif t >= 27 and t <= 35:
+            c = "07"
+        elif t > 35 and t <= 40:
+            c = "04"
+        else:
+            c = "04[bold]"
+    elif untpe == "wind":
+        t = round0dec(t)
+        if u == "mph":
+            t = t * 1.60934
+        if t >= 0 and t <= 11:
+            c = "14"
+        elif t >= 12 and t <= 28:
+            c = "12"
+        elif t >= 29 and t <= 38:
+            c = "03"
+        elif t >= 39 and t <= 49:
+            c = "07"
+        elif t >= 50 and t <= 61:
+            c = "05"
+        elif t >= 62 and t <= 74:
+            c = "04"
+        elif t >= 75 and t <= 88:
+            c = "00,13"
+        elif t >= 89 and t <= 102:
+            c = "00,06"
+        elif t >= 103 and t <= 117:
+            c = "00,10"
+        elif t >= 118 and t <= 153:
+            c = "01,09"
+        elif t >= 154 and t <= 177:
+            c = "01,08"
+        elif t >= 178 and t <= 210:
+            c = "01,00"
+        elif t >= 211 and t <= 251:
+            c = "01,11"
+        else:
+            c = "01,13"
+    elif untpe == "hum":
+        if t < 25 or t >= 70:
+            c = "04"
+        elif (t >= 25 and t < 30) or (t >= 60 and t < 70):
+            c = "08"
+        elif t >= 30 and t < 60:
+            c = "03"
+    elif untpe == "uv":
+        if t >= 0 and t <= 2:
+            c = "03"
+        elif t >= 3 and t <= 5:
+            c = "08"
+        elif t >= 6 and t <= 7:
+            c = "07"
+        else:
+            c = "04"
     return "\x03" + c + st + "\x0f"
+
+def round0dec(num):
+    st = str(num)
+    splt = st.split(".")
+    rnd = splt[0]
+    dec = splt[1]
+    if int(dec) == 0:
+        return int(rnd)
+    else:
+        return num
 
 def GetWeather(location, locname):
     global apikey
     global retries
+    if len(apikeys) == 0:
+         return ["error", "You haven't set any API key in settings.json thus the module will not work"]
     fullWeather = ""
     iserror = ""
     data = {"apikey": apikey, "language": "en", "details": "true"}
@@ -213,37 +279,41 @@ def GetWeather(location, locname):
     temp = load["Temperature"]
     Metric = temp["Metric"]
     Imperial = temp["Imperial"]
-    MetricTemp = wcolor(Metric["Value"], "c")
-    ImperialTemp = wcolor(Imperial["Value"], "f")
+    MetricTemp = wcolor(Metric["Value"], "c", "temp")
+    ImperialTemp = wcolor(Imperial["Value"], "f", "temp")
     MetricUnit = Metric["Unit"]
     ImperialUnit = Imperial["Unit"]
     Real = load["RealFeelTemperature"]
     RealMetric = Real["Metric"]
     RealImperial = Real["Imperial"]
-    RealMetricTemp = wcolor(RealMetric["Value"], "c")
-    RealImperialTemp = wcolor(RealImperial["Value"], "f")
+    RealMetricTemp = wcolor(RealMetric["Value"], "c", "temp")
+    RealImperialTemp = wcolor(RealImperial["Value"], "f", "temp")
     RealMetricUnit = RealMetric["Unit"]
     RealImperialUnit = RealImperial["Unit"]
     RealPhrase = RealMetric["Phrase"]
-    Humidity = str(load["RelativeHumidity"]) + "%"
+    Humidity = str(wcolor(load["RelativeHumidity"], "h", "hum")) + "%"
     Wind = load["Wind"]
     WindDir = Wind["Direction"]
     WindDeg = str(WindDir["Degrees"]) + "°"
     WindEng = WindDir["English"]
     WindSpeed = Wind["Speed"]
-    WindSpeedMetric = WindSpeed["Metric"]["Value"]
-    WindSpeedImperial = WindSpeed["Imperial"]["Value"]
+    WindSpeedMetric = wcolor(WindSpeed["Metric"]["Value"], "kph", "wind")
+    WindSpeedImperial = wcolor(WindSpeed["Imperial"]["Value"], "mph", "wind")
     WindMetrUnit = "kph"
     WindImpUnit = "mph"
     Gust = load["WindGust"]["Speed"]
     GustMetric = Gust["Metric"]
     GustImperial = Gust["Imperial"]
-    GustMetricSpeed = GustMetric["Value"]
-    GustImperialSpeed = GustImperial["Value"]
+    GustMetricSpeed = wcolor(GustMetric["Value"], "kph", "wind")
+    GustImperialSpeed = wcolor(GustImperial["Value"], "mph", "wind")
     GustMetricUnit = "kph"
     GustImperialUnit = "mph"
-    UVIndex = load["UVIndex"]
-    UVText = load["UVIndexText"]
+    if dayornight:
+        UVIndex = wcolor(load["UVIndex"], "uv", "uv")
+        UVText = load["UVIndexText"]
+        UVstring = "| [bold]UV:[bold] " +  str(UVIndex) + " " +  UVText + " |"
+    else:
+        UVstring = "|"
     Visibility = load["Visibility"]
     VisibMetric = Visibility["Metric"]["Value"]
     VisibImperial = Visibility["Imperial"]["Value"]
@@ -254,13 +324,15 @@ def GetWeather(location, locname):
     PressureImperial = load["Pressure"]["Imperial"]["Value"]
     PressUnitM = load["Pressure"]["Metric"]["Unit"]
     PressUnitI = load["Pressure"]["Imperial"]["Unit"]
-    fullWeather = "[bold]Condition:[bold] %s %s%s %s%s | [bold]RealFeel:[bold] %s%s %s%s %s | [bold]Humidity:[bold] %s | [bold]Wind:[bold] %s%s/%s%s %s %s [bold]Gust:[bold] %s%s/%s%s | [bold]UV:[bold] %s %s | [bold]Visibility:[bold] %s%s %s%s | [bold]CloudCover:[bold] %s | [bold]Pressure:[bold] %s%s %s%s" % (condition, MetricTemp, MetricUnit, ImperialTemp, ImperialUnit, RealMetricTemp, RealMetricUnit, RealImperialTemp, RealImperialUnit, RealPhrase, Humidity, WindSpeedMetric, WindMetrUnit, WindSpeedImperial, WindImpUnit, WindDeg, WindEng, GustMetricSpeed, GustMetricUnit, GustImperialSpeed, GustImperialUnit, UVIndex, UVText, VisibMetric, VisibMetrUnit,VisibImperial, VisibImpUnit, CloudCover, PressureMetric, PressUnitM, PressureImperial, PressUnitI)
+    fullWeather = "[bold]Condition:[bold] %s %s%s %s%s | [bold]RealFeel:[bold] %s%s %s%s %s | [bold]Humidity:[bold] %s | [bold]Wind:[bold] %s%s/%s%s %s %s [bold]Gust:[bold] %s%s/%s%s %s [bold]Visibility:[bold] %s%s %s%s | [bold]CloudCover:[bold] %s | [bold]Pressure:[bold] %s%s %s%s" % (condition, MetricTemp, MetricUnit, ImperialTemp, ImperialUnit, RealMetricTemp, RealMetricUnit, RealImperialTemp, RealImperialUnit, RealPhrase, Humidity, WindSpeedMetric, WindMetrUnit, WindSpeedImperial, WindImpUnit, WindDeg, WindEng, GustMetricSpeed, GustMetricUnit, GustImperialSpeed, GustImperialUnit, UVstring, VisibMetric, VisibMetrUnit,VisibImperial, VisibImpUnit, CloudCover, PressureMetric, PressUnitM, PressureImperial, PressUnitI)
     fullWeather = locname + " " + fullWeather
     return ["success", fullWeather]
 
 def GetForecast(location, locname):
     global apikey
     global retries
+    if len(apikeys) == 0:
+         return ["error", "You haven't set any API key in setting.json thus the module will not work."]
     theday = ""
     alldays = ""
     url = "http://dataservice.accuweather.com/forecasts/v1/daily/5day/%s" % (location)
@@ -302,13 +374,13 @@ def GetForecast(location, locname):
         Temp = day["Temperature"]
         TempMin = Temp["Minimum"]
         TempMax = Temp["Maximum"]
-        TempMinImp = wcolor(TempMin["Value"], "f")
-        TempMaxImp = wcolor(TempMax["Value"], "f")
+        TempMinImp = wcolor(TempMin["Value"], "f", "temp")
+        TempMaxImp = wcolor(TempMax["Value"], "f", "temp")
         TempImpUnit = "F"
-        TempMinMetr = (int(TempMinImp) - 32) * 5.0/9.0
-        TempMinMetr = wcolor(round(TempMinMetr,1))
-        TempMaxMetr = (int(TempMaxImp) - 32) * 5.0/9.0
-        TempMaxMetr = wcolor(round(TempMaxMetr,1))
+        TempMinMetr = (int(TempMin["Value"]) - 32) * 5.0/9.0
+        TempMinMetr = wcolor(round(TempMinMetr,1), "c", "temp")
+        TempMaxMetr = (int(TempMax["Value"]) - 32) * 5.0/9.0
+        TempMaxMetr = wcolor(round(TempMaxMetr,1), "c", "temp")
         TempMetrUnit = "C"
         Air = day["AirAndPollen"][0]
         AirQValue = Air["Value"]

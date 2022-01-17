@@ -48,8 +48,8 @@ class Discord:
         global thread_lock
         thread_lock = lock
 
-    def sendtoboth(self, message):
-        Discord.send_my_message(message)
+    def sendtoboth(message):
+        Discord.send_my_message("a", message)
         irc.send_my_message(message)
 
     def send_my_message(self, message):
@@ -64,6 +64,8 @@ class Discord:
             message = message + "*"
         message = message.replace("\x02", "**")
         message = message.replace(chr(29), "*")
+        message = message.replace("[bold]", "**")
+        message = irc.stripcolors(message)
         tags = message.split()
         for word in tags:
             c = word[0]
@@ -181,6 +183,12 @@ async def on_message(message):
     #global lastmsg
     #if lastmsg == 0:
         #lastmsg = message.id
+    ignores = settings["ignores"].split()
+    userid = message.author.mention.replace("<@", "")
+    userid = userid.replace(">", "")
+    if userid in ignores:
+        print("Ignoring", message.author.name, "(id:", userid + ")", "found in Ignore list")
+        return
     emptycontent = 0
     content = message.clean_content.replace("\n", " ").strip()
     precontent = content
@@ -202,16 +210,14 @@ async def on_message(message):
     if isweather[0] == "error":
         Discord.sendtoboth("Error: " + isweather[1])
     elif isweather[0] == "success":
-        Discord.sendtoboth(isweather[1].replace("[bold]", "**"))
+        Discord.sendtoboth(isweather[1])
     stripcontent = Discord.discstrip(precontent).split()
     isword = word.caller(message.author.name, stripcontent)
     if isword[0] == "success":
         Discord.sendtoboth(isword[1])
     elif isword[0] == "error":
         Discord.sendtoboth("Error: " + isword[1])
-    userid = message.author.mention.replace("<@", "")
-    userid = userid.replace(">", "")
-    botops = settings["botops"].split(",")
+    botops = settings["botops"].split()
     NameIsBotOp = 0
     kickban = 0
     for op in botops:
@@ -219,21 +225,22 @@ async def on_message(message):
             NameIsBotOp = 1
     if NameIsBotOp:
         NameIsBotOp = 0
-        if content[0] == "!kick" or content[0] == "!kickban" or content[0] == "!kb":
+        if content[0] in ["!kick", "!kickban", "!kb"]:
             cmd = content[0]
             if cmd == "!kickban" or cmd == "!kb":
                 kickban = 1
             if len(content) < 2:
                 Discord.send_my_message("a", "You didn't provide a nick. USAGE: !kick nick [reason]")
                 return
-            else:
+            elif len(content) >= 2:
                 if len(content) < 3:
                     kreason = "(Discord/" + message.author.name + ")" + " " + "No reason given"
                 else:
                     kreason = "(Discord/" + message.author.name + ")" + " " + LtoS(content[2:])
                 knick = content[1]
+                print(kreason, knick)
                 irc.kicknick(knick, kreason, kickban)
-            return
+            #return
     if content[0] == "!nicklist":
         Discord.send_my_message("a", irc.nicklist())
         return
@@ -251,7 +258,10 @@ async def on_message(message):
     mention = message.author.mention
     tag = Discord.reptag(mention, message.author.name)
     if content[0] == "!tag":
-        Discord.addusertag(mention, content[1])
+        if len(content) > 1:
+            Discord.addusertag(mention, content[1])
+        else:
+            Discord.sendtoboth("You didn't provide a tag. Usage: !tag mytaghere")
     if len(message.attachments) > 0:
         url = message.attachments[0].url
     if (word1.startswith("_") and wordz.endswith("_")) or (word1.startswith("*") and wordz.endswith("*")):

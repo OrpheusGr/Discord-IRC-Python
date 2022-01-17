@@ -1,7 +1,7 @@
 import irc.bot
 import ssl
 import re
-from time import sleep
+import time
 import weathermodule
 weather = weathermodule
 import wordcounter
@@ -71,12 +71,17 @@ class IRC(irc.bot.SingleServerIRCBot):
     def set_thread_lock(self, lock):
         self.thread_lock = lock
 
+    def sendtoboth(self, message):
+        self.send_my_message(message.replace("[bold]", "\x02"))
+        self.discord.send_my_message(self.stripcolors(message.replace("[bold]", "**")))
+
     def send_my_message(self, message):
+        message = message.replace("[bold]", "\x02")
         if len(message) >= 480:
             self.split_msg(message)
         else:
             self.connection.privmsg(channel, message.strip())
-
+'''
     def warnkickban(self, message, nick):
         global warnlist
         global channel
@@ -113,6 +118,17 @@ class IRC(irc.bot.SingleServerIRCBot):
                     warnlist.append(addwarn)
                     self.send_my_message(nick + ": Please avoid using such terms in " + channel + ". Excessive use will lead into a ban. Respect everyone :)")
                     return
+'''
+    def fromhost(self, host, part):
+        if iswm.match("*!*@*", host) == False:
+            return None
+        if part == "ident":
+            return host.split("!").split("@")[0]
+        if part == "identhost":
+            return host.split("!")[1]
+        else:
+            return host
+
 
     def kicknick(self, knick, kreason, ban):
         global channel
@@ -220,17 +236,25 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def on_welcome(self, connection, event):
         global channel
+        global ignores
         self.identify()
         self.discord.loadtags()
         self.connection = connection
         channel = self.settings["channel"]
-        sleep(2)
+        ignores = self.settings["ignores"].split()
+        time.sleep(2)
         connection.join(channel)
         with self.thread_lock:
             print("[IRC] Connected to server")
 
     def on_part(self, connection, event):
         if event.source.nick != connection.get_nickname():
+            if len(event.arguments) == 0:
+                extras = ""
+            else:
+                extras = event.arguments[0]
+            info = {"source": "irc", "event": "part", "nick": event.source.nick, "time": int(time.time()), "extras": extras, "channel": channel}
+            identhost = self.fromhost(event.source, "identhost")
             self.updatechanwho(event.source.nick, "no")
             message = "**{:s} just left {:s}**".format(\
                 re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), channel)
@@ -251,7 +275,7 @@ class IRC(irc.bot.SingleServerIRCBot):
         self.discord.send_my_message(nick + " kicked " + knick  + " (" + extras + " )")
         if event.arguments[0] == connection.get_nickname():
             self.connection.privmsg("Chanserv", "unban " + channel)
-            sleep(2)
+            time.sleep(2)
             connection.join(channel)
 
     def on_join(self, connection, event):
@@ -284,7 +308,6 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def on_pubmsg(self, connection, event):
         isweather = []
-        ignores = ["testingignorenick56776556yty7uu7765tg"]
         for nick in ignores:
             if nick == event.source.nick:
                 print("Ignoring " + nick + ". Found in ignore list")
@@ -294,7 +317,6 @@ class IRC(irc.bot.SingleServerIRCBot):
             re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), message)
         regexc = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
         message = regexc.sub("", message)
-        self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick)
         with self.thread_lock:
             print("[IRC] " + message)
         msg = event.arguments[0]
@@ -302,19 +324,19 @@ class IRC(irc.bot.SingleServerIRCBot):
         msg = msg.split()
         isword = word.caller(event.source.nick, msg)
         if isword[0] == "success":
-            self.send_my_message(isword[1])
+            self.sendtoboth(isword[1])
         elif isword[0] == "error":
-            self.send_my_message("Error: " + isword[1])
+            self.sendtoboth("Error: " + isword[1])
         isweather = weather.caller(msg, [event.source.nick, event.source.host])
         if isweather[0] == "error":
             wreply = "Error: " + isweather[1]
-            self.send_my_message(wreply)
+            self.sendtoboth(wreply)
         elif isweather[0] == "success":
-            self.send_my_message(isweather[1].replace("[bold]", "\x02"))
+            self.sendtoboth(isweather[1])
         if event.source.nick == self.settings["botowner"]:
             if event.arguments[0].strip() == "!cutrelay":
                 self.discord.send_my_message("Discord Bot Shutting Down")
-                sleep(2)
+                time.sleep(2)
                 self.discord.close()
                 return
             if event.arguments[0].strip() == "!test":
@@ -324,7 +346,6 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def on_action(self, connection, event):
         message = event.arguments[0].strip()
-        self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick)
         message = "_* {:s} {:s}_".format(\
             re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), message)
 

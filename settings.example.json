@@ -14,6 +14,7 @@
         "botowner": "yourIRCnickHere",
         "Help for chanservkick": "set 1 if you want the !kick etc commands to use a chanserv command instead of direct kick, if not set to 0",
         "chanservkick": 1,
+        "ignores": "input here IRC nicks to be ignored seperated by spaces",
         "quitmsg": "Using DiscordIRC Python Bot"
     },
     "discord": {
@@ -22,6 +23,7 @@
         "botops": "",
         "help for botowner": "add your user ID"
         "botowner": "",
+        "ignores": "input here Discord user ID's to be ignored seperated by spaces",
         "server": "",
         "channel": ""
     }
