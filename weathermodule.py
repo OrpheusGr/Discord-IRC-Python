@@ -158,13 +158,10 @@ def SetWeather(query, nick, hostorid):
         adduserw(nick, hostorid, findkey[0], findkey[1])
         return ["success", "Your prefered location has been saved successfuly :)"]
 
-def wcolor(t, u):
-    c = "3"
-    if u == "f":
-        t = (t - 30) / 2
+def wcolor(t, u, untpe):
+    t = round0dec(t)
     st = str(t)
     if untpe == "temp":
-        t = round0dec(t)
         if u == "f":
             t = (t - 30) / 2
         if t <= -20:
@@ -184,7 +181,6 @@ def wcolor(t, u):
         else:
             c = "04[bold]"
     elif untpe == "wind":
-        t = round0dec(t)
         if u == "mph":
             t = t * 1.60934
         if t >= 0 and t <= 11:
@@ -236,6 +232,8 @@ def wcolor(t, u):
 def round0dec(num):
     st = str(num)
     splt = st.split(".")
+    if "." not in st:
+        return num
     rnd = splt[0]
     dec = splt[1]
     if int(dec) == 0:
