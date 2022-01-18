@@ -19,10 +19,10 @@ https://discordapp.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot&permission
 
 ## Running
 Just launch the bot using `python3 main.py`.
-• To quit the bot, type `!cutrelay` in the IRC or Discord channel.
-• If you want to make use of the weather module you need a AccuWeather API key whick you can obtain in https://developer.accuweather.com/  Once you've done that you need to input your key in settings.json in the misc section, in the value of "apikey"
-• For the 'op' commands to work, you need to add the Discord User ID's of the users you want to allow usage. You can see someone's user ID by enabling Developer Mode in Discord Client, then simply click/tap on their Discord name and select "copy user id". Some related options are in settings.example.json
-• You can make the bot identify to IRC Services, if you wish to, simple options to configure that are in settings.example.json
+- To quit the bot, type `!cutrelay` in the IRC or Discord channel.
+- If you want to make use of the weather module you need a AccuWeather API key whick you can obtain in https://developer.accuweather.com/  Once you've done that you need to input your key in settings.json in the misc section, in the value of "apikey"
+- For the 'op' commands to work, you need to add the Discord User ID's of the users you want to allow usage. You can see someone's user ID by enabling Developer Mode in Discord Client, then simply click/tap on their Discord name and select "copy user id". Some related options are in settings.example.json
+- You can make the bot identify to IRC Services, if you wish to, simple options to configure that are in settings.example.json
 
 ## Licence
 
