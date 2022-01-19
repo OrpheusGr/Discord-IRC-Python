@@ -164,53 +164,61 @@ def wcolor(t, u, untpe):
     if untpe == "temp":
         if u == "f":
             t = (t - 30) / 2
-        if t <= -20:
-            c = "15"
-        elif t <= 0 and t >= -21:
-            c = "11"
-        elif t > 0 and t <= 15:
-            c = "10"
-        elif t > 15 and t <= 20:
+        if t <= -23:
+            c = "13"
+        elif t > -23 and t <= -12:
+            c = "06"
+        elif t > -12 and t <= -7:
             c = "12"
-        elif t > 20 and t < 27:
+        elif t > -7 and t <= -1:
+            c = "11"
+        elif t > -1 and t <= 4:
+            c = "03"
+        elif t > 4 and t <= 10:
+            c = "09"
+        elif t > 10 and t <= 16:
             c = "08"
-        elif t >= 27 and t <= 35:
+        elif t > 16 and t <= 21:
             c = "07"
-        elif t > 35 and t <= 40:
+        elif t > 21 and t <= 27:
+            c = "07[bold]"
+        elif t > 27 and t <= 32:
             c = "04"
-        else:
+        elif t > 32 and t <= 40:
             c = "04[bold]"
+        else:
+            c = "05[bold]"
     elif untpe == "wind":
         if u == "mph":
             t = t * 1.60934
         if t >= 0 and t <= 11:
             c = "14"
-        elif t >= 12 and t <= 28:
+        elif t > 11 and t <= 28:
             c = "12"
-        elif t >= 29 and t <= 38:
+        elif t > 28 and t <= 38:
             c = "03"
-        elif t >= 39 and t <= 49:
+        elif t > 38 and t <= 49:
             c = "07"
-        elif t >= 50 and t <= 61:
+        elif t > 49 and t <= 61:
             c = "05"
-        elif t >= 62 and t <= 74:
+        elif t > 61 and t <= 74:
             c = "04"
-        elif t >= 75 and t <= 88:
-            c = "00,13"
-        elif t >= 89 and t <= 102:
-            c = "00,06"
-        elif t >= 103 and t <= 117:
-            c = "00,10"
-        elif t >= 118 and t <= 153:
-            c = "01,09"
-        elif t >= 154 and t <= 177:
-            c = "01,08"
-        elif t >= 178 and t <= 210:
+        elif t > 74 and t <= 88:
+            c = "13"
+        elif t > 88 and t <= 102:
+            c = "06"
+        elif t > 102 and t <= 117:
+            c = "10"
+        elif t > 117 and t <= 153:
+            c = "09[bold]" + chr(29)
+        elif t > 153 and t <= 177:
+            c = "08[bold]" + chr(29)
+        elif t > 177 and t <= 210:
             c = "01,00"
-        elif t >= 211 and t <= 251:
-            c = "01,11"
-        else:
-            c = "01,13"
+        elif t > 210 and t <= 251:
+            c = "11[bold]" + chr(29)
+        elif t > 251:
+            c = "13[bold]" + chr(29)
     elif untpe == "hum":
         if t < 25 or t >= 70:
             c = "04"
@@ -378,9 +386,9 @@ def GetForecast(location, locname):
         TempMinImp = wcolor(TempMin["Value"], "f", "temp")
         TempMaxImp = wcolor(TempMax["Value"], "f", "temp")
         TempImpUnit = "F"
-        TempMinMetr = (int(TempMin["Value"]) - 32) * 5.0/9.0
+        TempMinMetr = (TempMin["Value"] - 32) * 5.0/9.0
         TempMinMetr = wcolor(round(TempMinMetr,1), "c", "temp")
-        TempMaxMetr = (int(TempMax["Value"]) - 32) * 5.0/9.0
+        TempMaxMetr = (TempMax["Value"] - 32) * 5.0/9.0
         TempMaxMetr = wcolor(round(TempMaxMetr,1), "c", "temp")
         TempMetrUnit = "C"
         Air = day["AirAndPollen"][0]
