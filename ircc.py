@@ -81,7 +81,7 @@ class IRC(irc.bot.SingleServerIRCBot):
             self.split_msg(message)
         else:
             self.connection.privmsg(channel, message.strip())
-'''
+
     def warnkickban(self, message, nick):
         global warnlist
         global channel
@@ -118,7 +118,7 @@ class IRC(irc.bot.SingleServerIRCBot):
                     warnlist.append(addwarn)
                     self.send_my_message(nick + ": Please avoid using such terms in " + channel + ". Excessive use will lead into a ban. Respect everyone :)")
                     return
-'''
+
     def fromhost(self, host, part):
         if iswm.match("*!*@*", host) == False:
             return None
@@ -155,16 +155,16 @@ class IRC(irc.bot.SingleServerIRCBot):
     def isonchan(self, target):
         global channelwho
         for pair in channelwho:
-            nick = pair[0]
-            if nick == target:
+            nick = pair[0].lower()
+            if nick == target.lower():
                 return "True"
         return "False"
 
     def gethost(self, user):
         global channelwho
         for pair in channelwho:
-            nick = pair[0]
-            if nick == user:
+            nick = pair[0].lower()
+            if nick == user.lower():
                 host = pair[1]
                 return host
         return "False"
@@ -253,8 +253,9 @@ class IRC(irc.bot.SingleServerIRCBot):
                 extras = ""
             else:
                 extras = event.arguments[0]
-            info = {"source": "irc", "event": "part", "nick": event.source.nick, "time": int(time.time()), "extras": extras, "channel": channel}
-            identhost = self.fromhost(event.source, "identhost")
+            #info = {"source": "irc", "event": "part", "nick": event.source.nick, "time": int(time.time()), "extras": extras, "channel": channel}
+            #identhost = self.fromhost(event.source, "identhost")
+            #seen.UpdSeenHost(identhost, info)
             self.updatechanwho(event.source.nick, "no")
             message = "**{:s} just left {:s}**".format(\
                 re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), channel)
@@ -317,6 +318,7 @@ class IRC(irc.bot.SingleServerIRCBot):
             re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), message)
         regexc = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
         message = regexc.sub("", message)
+        self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick)
         with self.thread_lock:
             print("[IRC] " + message)
         msg = event.arguments[0]
@@ -346,6 +348,7 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def on_action(self, connection, event):
         message = event.arguments[0].strip()
+        self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick)
         message = "_* {:s} {:s}_".format(\
             re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), message)
 
