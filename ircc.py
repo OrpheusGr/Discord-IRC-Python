@@ -81,7 +81,7 @@ class IRC(irc.bot.SingleServerIRCBot):
             self.split_msg(message)
         else:
             self.connection.privmsg(channel, message.strip())
-
+'''
     def warnkickban(self, message, nick):
         global warnlist
         global channel
@@ -118,7 +118,7 @@ class IRC(irc.bot.SingleServerIRCBot):
                     warnlist.append(addwarn)
                     self.send_my_message(nick + ": Please avoid using such terms in " + channel + ". Excessive use will lead into a ban. Respect everyone :)")
                     return
-
+'''
     def fromhost(self, host, part):
         if iswm.match("*!*@*", host) == False:
             return None
