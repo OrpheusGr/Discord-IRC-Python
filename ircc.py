@@ -6,7 +6,6 @@ import weathermodule
 weather = weathermodule
 import wordcounter
 word = wordcounter
-import iswm
 
 # Thanks to Alak Yadav for text_wrapper.py that solved my long messages problems -Orfeas
 # https://gist.githubusercontent.com/alakyadav/e3e33549b0a290cabcaee9686753fe03/raw/0dfe99803988adc0aef60cdefc5ba1839c000ce7/text_wrapper.py
