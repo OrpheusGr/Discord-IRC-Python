@@ -50,7 +50,7 @@ def caller(msg, nickhost):
     triggerf = ["forecast", "f"]
     forecast = "no"
     wreply = ""
-    cmd = msg[0][1:]
+    cmd = msg[0][1:].lower()
     if cmd == "setweather":
         if len(msg) < 2:
             return ["error", "You didn't provide a location to search for. Usage: setweather <location>"]
@@ -178,16 +178,14 @@ def wcolor(t, u, untpe):
             c = "09"
         elif t > 10 and t <= 16:
             c = "08"
-        elif t > 16 and t <= 21:
+        elif t > 16 and t <= 27:
             c = "07"
-        elif t > 21 and t <= 27:
-            c = "07[bold]"
         elif t > 27 and t <= 32:
             c = "04"
         elif t > 32 and t <= 40:
-            c = "04[bold]"
+            c = "04"
         else:
-            c = "05[bold]"
+            c = "05"
     elif untpe == "wind":
         if u == "mph":
             t = t * 1.60934
@@ -210,15 +208,15 @@ def wcolor(t, u, untpe):
         elif t > 102 and t <= 117:
             c = "10"
         elif t > 117 and t <= 153:
-            c = "09[bold]" + chr(29)
+            c = "09" + chr(29)
         elif t > 153 and t <= 177:
-            c = "08[bold]" + chr(29)
+            c = "08" + chr(29)
         elif t > 177 and t <= 210:
             c = "01,00"
         elif t > 210 and t <= 251:
-            c = "11[bold]" + chr(29)
+            c = "11" + chr(29)
         elif t > 251:
-            c = "13[bold]" + chr(29)
+            c = "13" + chr(29)
     elif untpe == "hum":
         if t < 25 or t >= 70:
             c = "04"
@@ -331,7 +329,7 @@ def GetWeather(location, locname):
     CloudCover = load["CloudCover"]
     PressureMetric = load["Pressure"]["Metric"]["Value"]
     PressureImperial = load["Pressure"]["Imperial"]["Value"]
-    PressUnitM = load["Pressure"]["Metric"]["Unit"]
+    PressUnitM = "hPa"
     PressUnitI = load["Pressure"]["Imperial"]["Unit"]
     fullWeather = "[bold]Condition:[bold] %s %s%s %s%s | [bold]RealFeel:[bold] %s%s %s%s %s | [bold]Humidity:[bold] %s | [bold]Wind:[bold] %s%s/%s%s %s %s [bold]Gust:[bold] %s%s/%s%s %s [bold]Visibility:[bold] %s%s %s%s | [bold]CloudCover:[bold] %s | [bold]Pressure:[bold] %s%s %s%s" % (condition, MetricTemp, MetricUnit, ImperialTemp, ImperialUnit, RealMetricTemp, RealMetricUnit, RealImperialTemp, RealImperialUnit, RealPhrase, Humidity, WindSpeedMetric, WindMetrUnit, WindSpeedImperial, WindImpUnit, WindDeg, WindEng, GustMetricSpeed, GustMetricUnit, GustImperialSpeed, GustImperialUnit, UVstring, VisibMetric, VisibMetrUnit,VisibImperial, VisibImpUnit, CloudCover, PressureMetric, PressUnitM, PressureImperial, PressUnitI)
     fullWeather = locname + " " + fullWeather

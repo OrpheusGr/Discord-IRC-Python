@@ -26,8 +26,7 @@ client = discord.Client()
 server = None
 channel = None
 irc = None
-#global lastmsg
-#lastmsg = 0
+
 class Discord:
     def __init__(self, sett):
         global settings
@@ -165,6 +164,12 @@ class Discord:
         m = m.replace("_", "")
         return m
 
+def ircdressup(m):
+    m = m.replace("**", "\x02")
+    m = m.replace("`", " ")
+    m = m.replace("*", chr(29))
+    return m
+
 def LtoS(s):
     string = " "
     return (string.join(s))
@@ -180,25 +185,73 @@ async def on_message(message):
     global channel
     global thread_lock
     global irc
-    #global lastmsg
-    #if lastmsg == 0:
-        #lastmsg = message.id
+    mention = message.author.mention
+    tag = Discord.reptag(mention, message.author.name)
+    if tag == message.author.name:
+        if message.author.nick:
+            tag = message.author.nick
+    if message.author.bot:
+        tag = tag + " " +  "\x03" + "00,12" + "BOT" + "\x0f"
+    msgrefpin = False
+    if message.type == discord.MessageType.pins_add:
+        msgrefpin = True
+    if message.reference:
+        refurl = ""
+        refid = message.reference.message_id
+        refinfo = await channel.fetch_message(refid)
+        refcont = ircdressup(refinfo.clean_content.strip("\n"))
+        if len(refinfo.attachments) > 0:
+            refurl = refinfo.attachments[0].url
+        if refcont == "":
+            refcont = refurl
+        refauthor = refinfo.author
+        refauthorname = refauthor.name
+        refauthorid = refauthor.id
+        refauthorbot = refauthor.bot
+        try:
+            refauthornick = refauthor.nick
+        except:
+            refauthornick = None
+        refauthormention = refauthor.mention
+        reftag = Discord.reptag(refauthor.mention, refauthorname)
+        if reftag == refauthorname:
+            if refauthornick != None:
+                refauthorname = refauthornick
+        else:
+            refauthorname = reftag
+        if refauthorbot:
+            refauthorname = refauthorname + "\x03" + "00,12" + "BOT" + "\x0f"
+        if msgrefpin == False:
+            if refauthor == client.user:
+                refcont = "\"" + refcont.split()[1].replace("**", "[bold]") + " " + LtoS(refcont.split()[2:15])  + "\"" + " [bold] <<< [bold]"
+            else:
+                refcont = "\"" + "<" + refauthorname + "> " + LtoS(refcont.split()[0:14]) + "\"" + " [bold] <<< [bold]"
+        else:
+            if refauthor == client.user:
+                refcont = LtoS(refcont.split()[1:])
+            pintoirc = "%s pinned a message: <%s> %s" % (tag, refauthorname, refcont)
+            irc.send_my_message(pintoirc)
+            return
+    else:
+        refid = 0
+        refinfo = 0
+        refcont = ""
+        refauthor = ""
+
     ignores = settings["ignores"].split()
-    userid = message.author.mention.replace("<@", "")
-    userid = userid.replace(">", "")
+    userid = str(message.author.id)
     if userid in ignores:
         print("Ignoring", message.author.name, "(id:", userid + ")", "found in Ignore list")
         return
     emptycontent = 0
     content = message.clean_content.replace("\n", " ").strip()
     precontent = content
-    content = content.replace("**", "\x02")
-    content = content.replace("`", " ")
-    content = content.replace("*", chr(29))
+    content = ircdressup(content)
     content = content.split()
     if content == []:
         emptycontent = 1
         content = ["|"]
+
     isweather = weather.caller(content, [message.author.name, message.author.mention])
     # Don't reply to itself
     if message.author == client.user:
@@ -255,9 +308,7 @@ async def on_message(message):
     url = ""
     word1 = content[0]
     wordz = content[-1]
-    mention = message.author.mention
-    tag = Discord.reptag(mention, message.author.name)
-    if content[0] == "!tag":
+    if content[0].lower() == "!tag":
         if len(content) > 1:
             Discord.addusertag(mention, content[1])
         else:
@@ -270,24 +321,30 @@ async def on_message(message):
             content = word1[1:] + " " +  LtoS(content[1:len2]) + " " +  wordz[:-1] + " " +  url
         else:
             content = word1[1:][:-1] + " " + " " +  url
-        irc.send_my_message("\x03" + "6" + chr(29) + "* %s %s%s" % (tag, content, chr(29)))
+        irc.send_my_message(refcont + "\x03" + "6" + chr(29) + "* %s %s%s" % (tag, content, chr(29)))
     else:
         newname = tag[0] + "\u200b" +  tag[1:]
         newname = "\x02" + newname + "\x02"
-        content = LtoS(content) + " " +  url
+        content = LtoS(content) + " " + url
         regexc = re.compile('<:\w*:\d*>', re.UNICODE)
+        findmoji = re.findall(regexc, content)
+        for moji in findmoji:
+            namemoji = ":" + moji.split(":")[1] + ":"
+            content = content.replace(moji, namemoji)
         content = regexc.sub("", content)
         if emptycontent == 1:
             emptycontent = 0
-            irc.send_my_message("<%s> %s" % (newname, url))
+            irc.send_my_message("%s <%s> %s" % (refcont, newname, url))
             return
-        irc.send_my_message("<%s> %s" % (newname, content))
-        #time.sleep(1)
-        #await message.add_reaction("\u2705")
-        #time.sleep(1)
-        #oldmessage = await channel.fetch_message(lastmsg)
-        #await oldmessage.clear_reaction("\u2705")
-        #lastmsg = message.id
+
+        splitcontent = content.split()
+        if len(splitcontent) >= 1:
+            if splitcontent[0] == ".tell":
+                edit = ".tell " + splitcontent[1] + " (from %s on Discord) " + LtoS(splitcontent[2:])
+                irc.send_my_message(edit % (newname))
+                return
+
+        irc.send_my_message("%s <%s> %s" % (refcont, newname, content))
 
 
 @client.event

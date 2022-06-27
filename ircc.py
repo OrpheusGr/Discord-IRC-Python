@@ -6,6 +6,7 @@ import weathermodule
 weather = weathermodule
 import wordcounter
 word = wordcounter
+import iswm
 
 # Thanks to Alak Yadav for text_wrapper.py that solved my long messages problems -Orfeas
 # https://gist.githubusercontent.com/alakyadav/e3e33549b0a290cabcaee9686753fe03/raw/0dfe99803988adc0aef60cdefc5ba1839c000ce7/text_wrapper.py
@@ -81,7 +82,7 @@ class IRC(irc.bot.SingleServerIRCBot):
             self.split_msg(message)
         else:
             self.connection.privmsg(channel, message.strip())
-'''
+
     def warnkickban(self, message, nick):
         global warnlist
         global channel
@@ -118,7 +119,7 @@ class IRC(irc.bot.SingleServerIRCBot):
                     warnlist.append(addwarn)
                     self.send_my_message(nick + ": Please avoid using such terms in " + channel + ". Excessive use will lead into a ban. Respect everyone :)")
                     return
-'''
+
     def fromhost(self, host, part):
         if iswm.match("*!*@*", host) == False:
             return None
@@ -163,8 +164,8 @@ class IRC(irc.bot.SingleServerIRCBot):
     def gethost(self, user):
         global channelwho
         for pair in channelwho:
-            nick = pair[0].lower()
-            if nick == user.lower():
+            nick = pair[0]
+            if nick == user:
                 host = pair[1]
                 return host
         return "False"
@@ -248,52 +249,58 @@ class IRC(irc.bot.SingleServerIRCBot):
             print("[IRC] Connected to server")
 
     def on_part(self, connection, event):
-        if event.source.nick != connection.get_nickname():
-            if len(event.arguments) == 0:
-                extras = ""
-            else:
-                extras = event.arguments[0]
-            #info = {"source": "irc", "event": "part", "nick": event.source.nick, "time": int(time.time()), "extras": extras, "channel": channel}
-            #identhost = self.fromhost(event.source, "identhost")
-            #seen.UpdSeenHost(identhost, info)
-            self.updatechanwho(event.source.nick, "no")
-            message = "**{:s} just left {:s}**".format(\
-                re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), channel)
+        nick = event.source.nick
+        if nick != connection.get_nickname():
+            self.updatechanwho(nick, "no")
+            try:
+                reason = event.arguments[0]
+            except IndexError:
+                reason = ""
+            message = "**%s just left %s (%s)**" % (nick, channel, reason)
             self.discord.send_my_message(message)
 
     def on_quit(self, connection, event):
-        if event.source.nick != connection.get_nickname():
-            self.updatechanwho(event.source.nick, "no")
-            message = "**{:s} just quit {:s}**".format(\
-                re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), network)
+        nick = event.source.nick
+        if nick != connection.get_nickname():
+            self.updatechanwho(nick, "no")
+            try:
+                reason = event.arguments[0]
+            except:
+                reason = ""
+            message = "**%s just quit %s (%s)**" % (nick, network, reason)
             self.discord.send_my_message(message)
 
     def on_kick(self, connection, event):
         nick = event.source.nick
-        knick = str(event.arguments[0]).strip("'[]")
+        knick = event.arguments[0]
         self.updatechanwho(knick, "no")
-        extras = str(event.arguments[1:]).strip("'[]")
-        self.discord.send_my_message(nick + " kicked " + knick  + " (" + extras + " )")
-        if event.arguments[0] == connection.get_nickname():
+        try:
+            extras = event.arguments[1]
+        except IndexError:
+            extras = ""
+        self.discord.send_my_message("%s kicked %s (%s)" % (nick, knick, extras))
+        if knick == connection.get_nickname():
             self.connection.privmsg("Chanserv", "unban " + channel)
             time.sleep(2)
             connection.join(channel)
 
     def on_join(self, connection, event):
-        if event.source.nick == connection.get_nickname():
+        nick = event.source.nick
+        if nick == connection.get_nickname():
             with self.thread_lock:
                 print("[IRC] Joined " + channel)
             self.connection.who(channel)
-            self.connection.privmsg(channel, "DiscIRC is now up and running!")
             self.discord.send_my_message("**DiscIRC is now up and running!**")
-        if event.source.nick != connection.get_nickname():
-            self.updatechanwho(event.source.nick, event.source.host)
-            message = "**{:s} just joined {:s}**".format(\
-                re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), channel)
+        if nick != connection.get_nickname():
+            self.updatechanwho(nick, event.source.host)
+            message = "%s just joined %s" %  (nick, channel)
             self.discord.send_my_message(message)
 
     def on_nick(self, connection, event):
-        event_msg = "**" + event.source.nick + "** " + "is now known as" + " **" + event.target + "**"
+        nick = event.source.nick
+        host = event.source.host
+        newnick = event.target
+        event_msg = "**%s** *is now known as* **%s**" % (nick, newnick)
         self.discord.send_my_message(event_msg)
         self.updatechanwho(event.source.nick, "no")
         self.updatechanwho(event.target, event.source.host)
@@ -313,38 +320,33 @@ class IRC(irc.bot.SingleServerIRCBot):
             if nick == event.source.nick:
                 print("Ignoring " + nick + ". Found in ignore list")
                 return
-        message = event.arguments[0].strip()
-        message = "<**{:s}**> {:s}".format(\
-            re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), message)
-        regexc = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
-        message = regexc.sub("", message)
-        self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick)
-        with self.thread_lock:
-            print("[IRC] " + message)
         msg = event.arguments[0]
         msg = self.stripcolors(msg)
         msg = msg.split()
-        isword = word.caller(event.source.nick, msg)
+        msg_string = self.LtoS(msg)
+        sender = event.source.nick
+        message = "<**%s**> %s" % (sender, msg_string)
+        self.discord.send_my_message(message)
+        self.warnkickban(msg_string, sender)
+        with self.thread_lock:
+            print("[IRC] <%s> %s" % (sender, msg_string))
+        isword = word.caller(sender, msg)
         if isword[0] == "success":
             self.sendtoboth(isword[1])
         elif isword[0] == "error":
             self.sendtoboth("Error: " + isword[1])
-        isweather = weather.caller(msg, [event.source.nick, event.source.host])
+        isweather = weather.caller(msg, [sender, event.source.host])
         if isweather[0] == "error":
             wreply = "Error: " + isweather[1]
             self.sendtoboth(wreply)
         elif isweather[0] == "success":
             self.sendtoboth(isweather[1])
-        if event.source.nick == self.settings["botowner"]:
-            if event.arguments[0].strip() == "!cutrelay":
+        if sender == self.settings["botowner"]:
+            if msg[0] == "!cutrelay":
                 self.discord.send_my_message("Discord Bot Shutting Down")
                 time.sleep(2)
                 self.discord.close()
                 return
-            if event.arguments[0].strip() == "!test":
-                self.connection.privmsg(channel, chr(29) + "Hello world!")
-                return
-        self.discord.send_my_message(message)
 
     def on_action(self, connection, event):
         message = event.arguments[0].strip()
