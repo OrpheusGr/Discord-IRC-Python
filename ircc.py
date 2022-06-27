@@ -6,6 +6,8 @@ import weathermodule
 weather = weathermodule
 import wordcounter
 word = wordcounter
+import karmamodule
+karma = karmamodule
 
 # Thanks to Alak Yadav for text_wrapper.py that solved my long messages problems -Orfeas
 # https://gist.githubusercontent.com/alakyadav/e3e33549b0a290cabcaee9686753fe03/raw/0dfe99803988adc0aef60cdefc5ba1839c000ce7/text_wrapper.py
@@ -329,6 +331,9 @@ class IRC(irc.bot.SingleServerIRCBot):
         self.warnkickban(msg_string, sender)
         with self.thread_lock:
             print("[IRC] <%s> %s" % (sender, msg_string))
+        iskarma = karma.caller(msg, sender)
+        if iskarma:
+            self.sendtoboth(iskarma)
         isword = word.caller(sender, msg)
         if isword[0] == "success":
             self.sendtoboth(isword[1])

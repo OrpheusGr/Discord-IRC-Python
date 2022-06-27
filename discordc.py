@@ -12,6 +12,8 @@ import weathermodule
 weather = weathermodule
 import wordcounter
 word = wordcounter
+import karmamodule
+karma = karmamodule
 checkfiles = ["usertags.txt"]
 for file in checkfiles:
     if os.path.isfile(file) == False:
@@ -260,6 +262,9 @@ async def on_message(message):
     if message.channel != channel:
         return
 
+    iskarma = karma.caller(content, message.author.name)
+    if iskarma:
+        Discord.sendtoboth(iskarma)
     if isweather[0] == "error":
         Discord.sendtoboth("Error: " + isweather[1])
     elif isweather[0] == "success":

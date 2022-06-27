@@ -9,7 +9,7 @@ for file in checkfiles:
 
 def caller(msg, nick):
     trigger = msg[0]
-    if trigger == "+karma":
+    if trigger.lower() == "+karma":
          if len(msg) == 1:
              query = nick
          elif len(msg) > 1:
