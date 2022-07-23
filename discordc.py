@@ -36,6 +36,7 @@ class Discord:
         global settings
         global thread_lock
         global userlist
+        userlist = []
 
         settings = sett["discord"]
 
