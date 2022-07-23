@@ -31,17 +31,22 @@ class IRC(irc.bot.SingleServerIRCBot):
         irc.client.ServerConnection.buffer_class.encoding = "UTF-8"
         irc.client.ServerConnection.buffer_class.errors = "replace"
         ssl_factory = irc.connection.Factory(wrapper=ssl.wrap_socket)
-        ssl_kwargs = {"connect_factory": ssl_factory}
-
-        irc.bot.SingleServerIRCBot.__init__(self, [\
-            (settings["irc"]["server"],\
-            int(settings["irc"]["port"]))],\
-            settings["irc"]["nickname"],\
-            settings["irc"]["nickname"],
-            **ssl_kwargs)
-
-
         self.settings = settings["irc"]
+        ssl_kwargs = {"connect_factory": ssl_factory}
+        if self.settings["ssl"] == "True":
+            irc.bot.SingleServerIRCBot.__init__(self, [\
+                (settings["irc"]["server"],\
+                int(settings["irc"]["port"]))],\
+                settings["irc"]["nickname"],\
+                settings["irc"]["nickname"],
+                **ssl_kwargs)
+        else:
+            irc.bot.SingleServerIRCBot.__init__(self, [\
+                (settings["irc"]["server"],\
+                int(settings["irc"]["port"]))],\
+                settings["irc"]["nickname"],\
+                settings["irc"]["nickname"])
+
 
     def set_discord(self, discordc):
         self.discord = discordc

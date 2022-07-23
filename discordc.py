@@ -345,12 +345,11 @@ async def on_message(message):
                 edit = ".tell " + splitcontent[1] + " (from %s on Discord) " + LtoS(splitcontent[2:])
                 irc.send_my_message(edit % (newname))
                 return
-
         irc.send_my_message("%s <%s> %s" % (refcont, newname, content))
-    iskarma = karma.caller(content, message.author.name)
+    iskarma = karma.caller(splitcontent, message.author.name)
     if iskarma:
         Discord.sendtoboth(iskarma)
-    isweather = weather.caller(content, [message.author.name, message.author.mention])
+    isweather = weather.caller(splitcontent, [message.author.name, message.author.mention])
     if isweather[0] == "error":
         Discord.sendtoboth("Error: " + isweather[1])
     elif isweather[0] == "success":

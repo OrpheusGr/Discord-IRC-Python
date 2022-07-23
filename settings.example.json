@@ -1,7 +1,8 @@
 {
     "irc": {
         "server": "irc.somenet.here",
-        "port": "6697",
+        "port": "6667",
+        "ssl": "False"
         "channel": "#channelhere",
         "nickname": "ircnickhere",
         "|Help| Change below value": "Set True or False to make the bot identify or not with NickServ. If True provide identify info below",
