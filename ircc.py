@@ -241,6 +241,7 @@ class IRC(irc.bot.SingleServerIRCBot):
         global ignores
         self.identify()
         self.discord.loadtags()
+        self.discord.setstatus()
         self.connection = connection
         channel = self.settings["channel"]
         ignores = self.settings["ignores"].split()
@@ -257,7 +258,7 @@ class IRC(irc.bot.SingleServerIRCBot):
                 reason = event.arguments[0]
             except IndexError:
                 reason = ""
-            message = "**%s just left %s (%s)**" % (nick, channel, reason)
+            message = "<- **%s just left %s (%s)**" % (nick, channel, reason)
             self.discord.send_my_message(message)
 
     def on_quit(self, connection, event):
@@ -268,7 +269,7 @@ class IRC(irc.bot.SingleServerIRCBot):
                 reason = event.arguments[0]
             except:
                 reason = ""
-            message = "**%s just quit %s (%s)**" % (nick, network, reason)
+            message = "<- **%s just quit %s (%s)**" % (nick, network, reason)
             self.discord.send_my_message(message)
 
     def on_kick(self, connection, event):
@@ -279,7 +280,7 @@ class IRC(irc.bot.SingleServerIRCBot):
             extras = event.arguments[1]
         except IndexError:
             extras = ""
-        self.discord.send_my_message("%s kicked %s (%s)" % (nick, knick, extras))
+        self.discord.send_my_message("**%s kicked %s (%s)**" % (nick, knick, extras))
         if knick == connection.get_nickname():
             self.connection.privmsg("Chanserv", "unban " + channel)
             time.sleep(2)
@@ -294,7 +295,7 @@ class IRC(irc.bot.SingleServerIRCBot):
             self.discord.send_my_message("**DiscIRC is now up and running!**")
         if nick != connection.get_nickname():
             self.updatechanwho(nick, event.source.host)
-            message = "%s just joined %s" %  (nick, channel)
+            message = "-> **%s just joined %s**" %  (nick, channel)
             self.discord.send_my_message(message)
 
     def on_nick(self, connection, event):
@@ -331,6 +332,8 @@ class IRC(irc.bot.SingleServerIRCBot):
         self.warnkickban(msg_string, sender)
         with self.thread_lock:
             print("[IRC] <%s> %s" % (sender, msg_string))
+        if msg[0] ==  "!disclist":
+            self.discord.send_list()
         iskarma = karma.caller(msg, sender)
         if iskarma:
             self.sendtoboth(iskarma)
@@ -355,7 +358,7 @@ class IRC(irc.bot.SingleServerIRCBot):
     def on_action(self, connection, event):
         message = event.arguments[0].strip()
         self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick)
-        message = "_* {:s} {:s}_".format(\
+        message = "_* {:s} {:s} _".format(\
             re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), message)
 
         with self.thread_lock:

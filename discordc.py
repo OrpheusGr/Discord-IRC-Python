@@ -24,7 +24,9 @@ logging.basicConfig(level=logging.INFO)
 thread_lock = None
 
 settings = None
-client = discord.Client()
+intents = discord.Intents.default()
+intents.members = True
+client = discord.Client(intents=intents)
 server = None
 channel = None
 irc = None
@@ -53,6 +55,25 @@ class Discord:
         Discord.send_my_message("a", message)
         irc.send_my_message(message)
 
+    def send_list(self):
+        irclist = "Discord users with IRC role:"
+        for member in server.members:
+            for role in member.roles:
+                if role.name == "IRC":
+                    tag = Discord.reptag(member.mention, member.name)
+                    print(tag)
+                    if tag == member.name:
+                        if member.nick:
+                            tag = member.nick
+                    if member.bot:
+                        tag = tag + " " +  "\x03" + "00,12" + "BOT" + "\x0f"
+                    irclist = irclist + "[bold] | [bold]" + tag
+        if irclist == "Discord users with IRC role:":
+            irc.send_my_message("No users with the IRC role found.")
+            return
+        Discord.send_my_message("a", "**Forwarding members that have the IRC role.**")
+        irc.send_my_message(irclist)
+
     def send_my_message(self, message):
         global client
         global userlist
@@ -79,6 +100,9 @@ class Discord:
         message = LtoS(newtags)
         message = timestamp + " " + message
         asyncio.run_coroutine_threadsafe(send_my_message_async(message), client.loop)
+
+    def setstatus(self):
+        asyncio.run_coroutine_threadsafe(setstatus_async(1), client.loop)
 
     def run(self):
         global settings
@@ -176,6 +200,9 @@ def LtoS(s):
     string = " "
     return (string.join(s))
 
+async def setstatus_async(a):
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="IRC and Discord"))
+
 async def send_my_message_async(message):
     await channel.send(message.strip())
 
@@ -187,6 +214,7 @@ async def on_message(message):
     global channel
     global thread_lock
     global irc
+    print(message.stickers)
     mention = message.author.mention
     tag = Discord.reptag(mention, message.author.name)
     if tag == message.author.name:
@@ -194,6 +222,7 @@ async def on_message(message):
             tag = message.author.nick
     if message.author.bot:
         tag = tag + " " +  "\x03" + "00,12" + "BOT" + "\x0f"
+    #RepliesPins Start - This block checks if the message is a reply to a previous message and shows it appropriately on IRC. It also checks if a message was pinned and relays that as well.
     msgrefpin = False
     if message.type == discord.MessageType.pins_add:
         msgrefpin = True
@@ -201,6 +230,7 @@ async def on_message(message):
         refurl = ""
         refid = message.reference.message_id
         refinfo = await channel.fetch_message(refid)
+        print(refinfo)
         refcont = ircdressup(refinfo.clean_content.strip("\n"))
         if len(refinfo.attachments) > 0:
             refurl = refinfo.attachments[0].url
@@ -209,11 +239,18 @@ async def on_message(message):
         refauthor = refinfo.author
         refauthorname = refauthor.name
         refauthorid = refauthor.id
+        if refauthorid == message.author.id:
+            refauthor = message.author
         refauthorbot = refauthor.bot
+        refguild = refinfo.guild
         try:
-            refauthornick = refauthor.nick
+            refauthornick = refguild.get_member(refauthorid).nick
         except:
-            refauthornick = None
+            try:
+                #catch the case where the refauthor is same as message.author
+                refauthornick = refauthor.nick
+            except:
+                refauthornick = None
         refauthormention = refauthor.mention
         reftag = Discord.reptag(refauthor.mention, refauthorname)
         if reftag == refauthorname:
@@ -239,12 +276,16 @@ async def on_message(message):
         refinfo = 0
         refcont = ""
         refauthor = ""
+    #RepliesPins End
 
+    #ignore check start
     ignores = settings["ignores"].split()
     userid = str(message.author.id)
     if userid in ignores:
         print("Ignoring", message.author.name, "(id:", userid + ")", "found in Ignore list")
         return
+    #ignore check end
+
     emptycontent = 0
     content = message.clean_content.replace("\n", " ").strip()
     precontent = content
@@ -254,7 +295,6 @@ async def on_message(message):
         emptycontent = 1
         content = ["|"]
 
-    isweather = weather.caller(content, [message.author.name, message.author.mention])
     # Don't reply to itself
     if message.author == client.user:
         return
@@ -262,50 +302,6 @@ async def on_message(message):
     if message.channel != channel:
         return
 
-    iskarma = karma.caller(content, message.author.name)
-    if iskarma:
-        Discord.sendtoboth(iskarma)
-    if isweather[0] == "error":
-        Discord.sendtoboth("Error: " + isweather[1])
-    elif isweather[0] == "success":
-        Discord.sendtoboth(isweather[1])
-    stripcontent = Discord.discstrip(precontent).split()
-    isword = word.caller(message.author.name, stripcontent)
-    if isword[0] == "success":
-        Discord.sendtoboth(isword[1])
-    elif isword[0] == "error":
-        Discord.sendtoboth("Error: " + isword[1])
-    botops = settings["botops"].split()
-    NameIsBotOp = 0
-    kickban = 0
-    for op in botops:
-        if userid == op:
-            NameIsBotOp = 1
-    if NameIsBotOp:
-        NameIsBotOp = 0
-        if content[0] in ["!kick", "!kickban", "!kb"]:
-            cmd = content[0]
-            if cmd == "!kickban" or cmd == "!kb":
-                kickban = 1
-            if len(content) < 2:
-                Discord.send_my_message("a", "You didn't provide a nick. USAGE: !kick nick [reason]")
-                return
-            elif len(content) >= 2:
-                if len(content) < 3:
-                    kreason = "(Discord/" + message.author.name + ")" + " " + "No reason given"
-                else:
-                    kreason = "(Discord/" + message.author.name + ")" + " " + LtoS(content[2:])
-                knick = content[1]
-                print(kreason, knick)
-                irc.kicknick(knick, kreason, kickban)
-            #return
-    if content[0] == "!nicklist":
-        Discord.send_my_message("a", irc.nicklist())
-        return
-    if userid == settings["botowner"]:
-        if content[0] == "!cutrelay":
-            await client.close()
-            return
 
     with thread_lock:
         print("[Discord] %s: %s" % (message.author.name, LtoS(content)))
@@ -350,6 +346,52 @@ async def on_message(message):
                 return
 
         irc.send_my_message("%s <%s> %s" % (refcont, newname, content))
+    iskarma = karma.caller(content, message.author.name)
+    if iskarma:
+        Discord.sendtoboth(iskarma)
+    isweather = weather.caller(content, [message.author.name, message.author.mention])
+    if isweather[0] == "error":
+        Discord.sendtoboth("Error: " + isweather[1])
+    elif isweather[0] == "success":
+        Discord.sendtoboth(isweather[1])
+    stripcontent = Discord.discstrip(precontent).split()
+    isword = word.caller(message.author.name, stripcontent)
+    if isword[0] == "success":
+        Discord.sendtoboth(isword[1])
+    elif isword[0] == "error":
+        Discord.sendtoboth("Error: " + isword[1])
+    botops = settings["botops"].split()
+    NameIsBotOp = 0
+    kickban = 0
+    for op in botops:
+        if userid == op:
+            NameIsBotOp = 1
+    if NameIsBotOp:
+        NameIsBotOp = 0
+        if content[0] in ["!kick", "!kickban", "!kb"]:
+            cmd = content[0]
+            if cmd == "!kickban" or cmd == "!kb":
+                kickban = 1
+            if len(content) < 2:
+                Discord.send_my_message("a", "You didn't provide a nick. USAGE: !kick nick [reason]")
+                return
+            elif len(content) >= 2:
+                if len(content) < 3:
+                    kreason = "(Discord/" + message.author.name + ")" + " " + "No reason given"
+                else:
+                    kreason = "(Discord/" + message.author.name + ")" + " " + LtoS(content[2:])
+                knick = content[1]
+                print(kreason, knick)
+                irc.kicknick(knick, kreason, kickban)
+            #return
+    if content[0] == "!nicklist":
+        Discord.send_my_message("a", irc.nicklist())
+        return
+    if userid == settings["botowner"]:
+        if content[0] == "!cutrelay":
+            await client.close()
+            return
+
 
 
 @client.event
@@ -416,3 +458,4 @@ async def on_ready():
             return
 
         channel = findChannel[0]
+
