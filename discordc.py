@@ -35,6 +35,7 @@ class Discord:
     def __init__(self, sett):
         global settings
         global thread_lock
+        global userlist
 
         settings = sett["discord"]
 
