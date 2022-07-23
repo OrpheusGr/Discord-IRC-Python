@@ -216,7 +216,6 @@ async def on_message(message):
     global channel
     global thread_lock
     global irc
-    print(message.stickers)
     mention = message.author.mention
     tag = Discord.reptag(mention, message.author.name)
     if tag == message.author.name:
