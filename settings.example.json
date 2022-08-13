@@ -3,7 +3,6 @@
         "server": "irc.somenet.here",
         "port": "6667",
         "ssl": "False"
-        "channel": "#channelhere",
         "nickname": "ircnickhere",
         "|Help| Change below value": "Set True or False to make the bot identify or not with NickServ. If True provide identify info below",
         "identify": "False",
@@ -16,7 +15,8 @@
         "Help for chanservkick": "set 1 if you want the !kick etc commands to use a chanserv command instead of direct kick, if not set to 0",
         "chanservkick": 1,
         "ignores": "input here IRC nicks to be ignored seperated by spaces",
-        "quitmsg": "Using DiscordIRC Python Bot"
+        "quitmsg": "Using DiscordIRC Python Bot",
+        "send_nick_list": "False"
     },
     "discord": {
         "token": "",
@@ -26,8 +26,10 @@
         "botowner": "",
         "ignores": "input here Discord user ID's to be ignored seperated by spaces",
         "server": "",
-        "channel": ""
-    }
+        "send_nick_list": ""
+    },
+    "channelsets": {
+        "discord_channel_id_here": "irc channel name here, add more such lines for other channel pairs"
     "misc": {
         "weatherapikeys": ""
     }

@@ -22,16 +22,22 @@ class IRC(irc.bot.SingleServerIRCBot):
     connection = None
     discord = None
     network = None
-    channel = None
     global channelwho
-    channelwho = []
+    channelwho = {}
     global warnlist
     warnlist = []
+    global channelsetsopp
     def __init__(self, settings):
         irc.client.ServerConnection.buffer_class.encoding = "UTF-8"
         irc.client.ServerConnection.buffer_class.errors = "replace"
         ssl_factory = irc.connection.Factory(wrapper=ssl.wrap_socket)
         self.settings = settings["irc"]
+        self.channelsets = settings["channelsets"]
+        self.channelsetsopp = {}
+        for c in self.channelsets:
+            nc = self.channelsets[c].lower()
+            self.channelsetsopp[nc] = c
+            self.channelsets[c] = self.channelsets[c].lower()
         ssl_kwargs = {"connect_factory": ssl_factory}
         if self.settings["ssl"] == "True":
             irc.bot.SingleServerIRCBot.__init__(self, [\
@@ -56,7 +62,7 @@ class IRC(irc.bot.SingleServerIRCBot):
             right -= 1
         return right
 
-    def split_msg(self, msg):
+    def split_msg(self, msg, channel):
         limit = 480
         left = 0
         right = limit - 1
@@ -78,20 +84,19 @@ class IRC(irc.bot.SingleServerIRCBot):
     def set_thread_lock(self, lock):
         self.thread_lock = lock
 
-    def sendtoboth(self, message):
-        self.send_my_message(message.replace("[bold]", "\x02"))
-        self.discord.send_my_message(self.stripcolors(message.replace("[bold]", "**")))
+    def sendtoboth(self, message, ircchan, discordchan):
+        self.send_my_message(message.replace("[bold]", "\x02"), ircchan)
+        self.discord.send_my_message(self.stripcolors(message.replace("[bold]", "**")), discordchan)
 
-    def send_my_message(self, message):
+    def send_my_message(self, message, channel):
         message = message.replace("[bold]", "\x02")
         if len(message) >= 480:
-            self.split_msg(message)
+            self.split_msg(message, channel)
         else:
             self.connection.privmsg(channel, message.strip())
 
-    def warnkickban(self, message, nick):
+    def warnkickban(self, message, nick, channel):
         global warnlist
-        global channel
         warnexcept = ["grandmom", "granddad", "elune", "skittle", "atheism", "drpoxenstein"]
         if nick.lower() in warnexcept:
             return
@@ -111,13 +116,13 @@ class IRC(irc.bot.SingleServerIRCBot):
                             warnlist.append([nick, warns])
                         elif warns == 2:
                             kreason = "Refrain from excessive use of such terms in " + channel + " You have been warned already."
-                            self.kicknick(nick, kreason, 0)
+                            self.kicknick(nick, kreason, 0, channel)
                             warnlist.remove(pair)
                             warns += 1
                             warnlist.append([nick, warns])
                         elif warns == 3:
                             kreason = "You have been warned about using such terms in here. Goodbye."
-                            self.kicknick(nick, kreason, 1)
+                            self.kicknick(nick, kreason, 1, channel)
                             warnlist.remove(pair)
                             return
                 if warns == 0:
@@ -137,10 +142,10 @@ class IRC(irc.bot.SingleServerIRCBot):
             return host
 
 
-    def kicknick(self, knick, kreason, ban):
-        global channel
+    def kicknick(self, knick, kreason, ban, channel):
         chanservkick = self.settings["chanservkick"]
-        isnick = self.isonchan(knick)
+        isnick = self.isonchan(knick, channel)
+        print("kicknick", channel, isnick)
         if isnick == "True":
             if ban == 1:
                 if chanservkick == 1:
@@ -159,9 +164,12 @@ class IRC(irc.bot.SingleServerIRCBot):
         else:
             self.discord.send_my_message("Nick not in channel")
 
-    def isonchan(self, target):
+    def isonchan(self, target, channel):
         global channelwho
-        for pair in channelwho:
+        currchan = channelwho[channel]
+        print("ison", currchan)
+        for pair in currchan:
+            print("ison",pair)
             nick = pair[0].lower()
             if nick == target.lower():
                 return "True"
@@ -169,18 +177,22 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def gethost(self, user):
         global channelwho
-        for pair in channelwho:
-            nick = pair[0]
-            if nick == user:
-                host = pair[1]
-                return host
-        return "False"
+        for chan in channelwho:
+            loopchan = channelwho[chan]
+            for pair in loopchan:
+                nick = pair[0]
+                if nick == user:
+                    host = pair[1]
+                    return host
+            return "False"
 
-    def nicklist(self):
-        global channel
+    def nicklist(self, channel):
+        if self.settings["send_nick_list"] == "False":
+            return "Command disabled."
         global channelwho
+        currchan = channelwho[channel]
         y = ""
-        for pair in channelwho:
+        for pair in currchan:
             nick = pair[0]
             if y == "":
                 y = "%s Nicklist: %s" % (channel, nick)
@@ -206,20 +218,30 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def on_whoreply(self, connection, event):
         global channelwho
+        channel = event.arguments[0].lower()
         nick = event.arguments[4]
         host = event.arguments[2]
-        channelwho.append([nick, host])
+        if channel not in channelwho:
+            channelwho[channel] = []
+        channelwho[channel].append([nick, host])
+        print(channelwho)
 
-    def updatechanwho(self, target, host):
+    def updatechanwho(self, target, host, channel):
         global channelwho
+        if channel not in channelwho:
+            return
+        currchan = channelwho[channel]
+        print(currchan)
         if host == "no":
-            for pair in channelwho:
+            for pair in currchan:
                 nick = pair[0]
                 if nick == target:
                     actualhost = pair[1]
-                    channelwho.remove([target, actualhost])
+                    currchan.remove(pair)
+                    print(channelwho[channel])
                     return
-        channelwho.append([target, host])
+        currchan.append([target, host])
+        print(channelwho[channel])
 
     def LtoS(self, s):
         string = " "
@@ -242,50 +264,60 @@ class IRC(irc.bot.SingleServerIRCBot):
             self.connection.privmsg(self.NickServName, self.NickServMsg)
 
     def on_welcome(self, connection, event):
-        global channel
         global ignores
         self.identify()
         self.discord.loadtags()
         self.discord.setstatus()
         self.connection = connection
-        channel = self.settings["channel"]
         ignores = self.settings["ignores"].split()
         time.sleep(2)
-        connection.join(channel)
+        chanl = self.channelsets
+        for c in chanl:
+            connection.join(chanl[c])
         with self.thread_lock:
             print("[IRC] Connected to server")
 
     def on_part(self, connection, event):
         nick = event.source.nick
+        ircchan = event.target.lower()
+        discordchan = self.discord.toch(self.channelsetsopp[ircchan])
         if nick != connection.get_nickname():
             self.updatechanwho(nick, "no")
             try:
-                reason = event.arguments[0]
+                reason = "(" + event.arguments[0] + ")"
             except IndexError:
                 reason = ""
-            message = "<- **%s just left %s (%s)**" % (nick, channel, reason)
-            self.discord.send_my_message(message)
+            message = "<- **%s just left %s %s**" % (nick, ircchan, reason)
+            self.discord.send_my_message(message, discordchan)
+
 
     def on_quit(self, connection, event):
         nick = event.source.nick
         if nick != connection.get_nickname():
-            self.updatechanwho(nick, "no")
             try:
                 reason = event.arguments[0]
             except:
                 reason = ""
             message = "<- **%s just quit %s (%s)**" % (nick, network, reason)
-            self.discord.send_my_message(message)
+            for ch in channelwho:
+                currchan = channelwho[ch]
+                for pair in currchan:
+                    if nick == pair[0]:
+                        self.updatechanwho(nick, "no", ch)
+                        discordchan = self.discord.toch(self.channelsetsopp[ch])
+                        self.discord.send_my_message(message, discordchan)
 
     def on_kick(self, connection, event):
         nick = event.source.nick
         knick = event.arguments[0]
-        self.updatechanwho(knick, "no")
+        channel = event.target.lower()
+        discordchan = self.discord.toch(self.channelsetsopp[channel])
+        self.updatechanwho(knick, "no", channel)
         try:
-            extras = event.arguments[1]
+            extras = "(" + event.arguments[1] + ")"
         except IndexError:
             extras = ""
-        self.discord.send_my_message("**%s kicked %s (%s)**" % (nick, knick, extras))
+        self.discord.send_my_message("**%s kicked %s %s**" % (nick, knick, extras), discordchan)
         if knick == connection.get_nickname():
             self.connection.privmsg("Chanserv", "unban " + channel)
             time.sleep(2)
@@ -293,24 +325,31 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def on_join(self, connection, event):
         nick = event.source.nick
+        channel = event.target.lower()
+        discordchan = self.discord.toch(self.channelsetsopp[channel])
         if nick == connection.get_nickname():
             with self.thread_lock:
                 print("[IRC] Joined " + channel)
             self.connection.who(channel)
-            self.discord.send_my_message("**DiscIRC is now up and running!**")
-        if nick != connection.get_nickname():
-            self.updatechanwho(nick, event.source.host)
+            self.discord.send_my_message("**DiscIRC is now up and running!**", discordchan)
+        else:
+            self.updatechanwho(nick, event.source.host, channel)
             message = "-> **%s just joined %s**" %  (nick, channel)
-            self.discord.send_my_message(message)
+            self.discord.send_my_message(message, discordchan)
 
     def on_nick(self, connection, event):
         nick = event.source.nick
         host = event.source.host
         newnick = event.target
         event_msg = "**%s** *is now known as* **%s**" % (nick, newnick)
-        self.discord.send_my_message(event_msg)
-        self.updatechanwho(event.source.nick, "no")
-        self.updatechanwho(event.target, event.source.host)
+        for ch in channelwho:
+            currchan = channelwho[ch]
+            for pair in currchan:
+                if nick == pair[0]:
+                    discordchan = self.discord.toch(self.channelsetsopp[ch])
+                    self.discord.send_my_message(event_msg, discordchan)
+                    self.updatechanwho(event.source.nick, "no", ch)
+                    self.updatechanwho(newnick, event.source.host, ch)
 
     def stripcolors(self, m):
         m = m.replace("\x02", "")
@@ -322,6 +361,8 @@ class IRC(irc.bot.SingleServerIRCBot):
         return m
 
     def on_pubmsg(self, connection, event):
+        channel = event.target.lower()
+        discordchan = self.discord.toch(self.channelsetsopp[channel])
         isweather = []
         for nick in ignores:
             if nick == event.source.nick:
@@ -333,29 +374,29 @@ class IRC(irc.bot.SingleServerIRCBot):
         msg_string = self.LtoS(msg)
         sender = event.source.nick
         message = "<**%s**> %s" % (sender, msg_string)
-        self.discord.send_my_message(message)
-        self.warnkickban(msg_string, sender)
+        self.discord.send_my_message(message, discordchan)
+        self.warnkickban(msg_string, sender, channel)
         with self.thread_lock:
             print("[IRC] <%s> %s" % (sender, msg_string))
         if msg[0] ==  "!disclist":
-            self.discord.send_list()
+            self.discord.send_list(channel)
         iskarma = karma.caller(msg, sender)
         if iskarma:
-            self.sendtoboth(iskarma)
+            self.sendtoboth(iskarma, channel, discordchan)
         isword = word.caller(sender, msg)
         if isword[0] == "success":
-            self.sendtoboth(isword[1])
+            self.sendtoboth(isword[1], channel, discordchan)
         elif isword[0] == "error":
-            self.sendtoboth("Error: " + isword[1])
+            self.sendtoboth("Error: " + isword[1], channel, discordchan)
         isweather = weather.caller(msg, [sender, event.source.host])
         if isweather[0] == "error":
             wreply = "Error: " + isweather[1]
-            self.sendtoboth(wreply)
+            self.sendtoboth(wreply, channel, discordchan)
         elif isweather[0] == "success":
-            self.sendtoboth(isweather[1])
+            self.sendtoboth(isweather[1], channel, discordchan)
         if sender == self.settings["botowner"]:
             if msg[0] == "!cutrelay":
-                self.discord.send_my_message("Discord Bot Shutting Down")
+                self.discord.send_to_all("Discord Bot Shutting Down")
                 time.sleep(2)
                 self.discord.close()
                 return
@@ -370,7 +411,8 @@ class IRC(irc.bot.SingleServerIRCBot):
             print("[IRC] " + message)
 
 
-        self.discord.send_my_message(message)
+        self.discord.send_my_message(message, discordchan)
+
     def run(self):
         self.start()
 

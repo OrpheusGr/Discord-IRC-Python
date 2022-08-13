@@ -28,7 +28,6 @@ intents = discord.Intents.default()
 intents.members = True
 client = discord.Client(intents=intents)
 server = None
-channel = None
 irc = None
 
 class Discord:
@@ -36,9 +35,17 @@ class Discord:
         global settings
         global thread_lock
         global userlist
+        global channelsets
+        global channelsetsopp
         userlist = []
 
         settings = sett["discord"]
+        channelsets = sett["channelsets"]
+        channelsetsopp = {}
+        for i in channelsets:
+            ni = channelsets[i].lower()
+            channelsetsopp[ni] = i
+            channelsets[i] = channelsets[i].lower()
 
         if not settings["token"]:
             with thread_lock:
@@ -53,17 +60,26 @@ class Discord:
         global thread_lock
         thread_lock = lock
 
-    def sendtoboth(message):
-        Discord.send_my_message("a", message)
-        irc.send_my_message(message)
+    def send_to_all(self, message):
+        global channelsets
+        for i in channelsets:
+            g = self.toch(i)
+            Discord.send_my_message("a", message, g)
 
-    def send_list(self):
+    def sendtoboth(message, ircchan, discordchan):
+        Discord.send_my_message("a", message, discordchan)
+        irc.send_my_message(message, ircchan)
+
+    def send_list(self, channel):
+        global channelsetsopp
+        if settings["send_nick_list"] == "False":
+            Discord.send_my_message("a", "Command is disabled", channelsetsopp[channel])
+            return
         irclist = "Discord users with IRC role:"
         for member in server.members:
             for role in member.roles:
                 if role.name == "IRC":
                     tag = Discord.reptag(member.mention, member.name)
-                    print(tag)
                     if tag == member.name:
                         if member.nick:
                             tag = member.nick
@@ -71,12 +87,18 @@ class Discord:
                         tag = tag + " " +  "\x03" + "00,12" + "BOT" + "\x0f"
                     irclist = irclist + "[bold] | [bold]" + tag
         if irclist == "Discord users with IRC role:":
-            irc.send_my_message("No users with the IRC role found.")
+            irc.send_my_message("No users with the IRC role found.", channel)
             return
-        Discord.send_my_message("a", "**Forwarding members that have the IRC role.**")
-        irc.send_my_message(irclist)
+        Discord.send_my_message("a", "**Forwarding members that have the IRC role.**", channelsetsopp[channel])
+        irc.send_my_message(irclist, channel)
 
-    def send_my_message(self, message):
+    def toch(self, chid):
+        global client
+        chid = int(chid)
+        channel = client.get_channel(chid)
+        return channel
+
+    def send_my_message(self, message, channel):
         global client
         global userlist
         newtags = []
@@ -101,7 +123,7 @@ class Discord:
             newtags.append(word)
         message = LtoS(newtags)
         message = timestamp + " " + message
-        asyncio.run_coroutine_threadsafe(send_my_message_async(message), client.loop)
+        asyncio.run_coroutine_threadsafe(send_my_message_async(message, channel), client.loop)
 
     def setstatus(self):
         asyncio.run_coroutine_threadsafe(setstatus_async(1), client.loop)
@@ -155,7 +177,7 @@ class Discord:
 
 # Adds a new usertag to the list, if not taken, and calls the updatetags() to save the new list in usertags.txt
 
-    def addusertag(userid, want):
+    def addusertag(userid, want, channel):
         global userlist
         updtag = ""
         newuserlist = []
@@ -164,14 +186,14 @@ class Discord:
         if len(userlist) == 0:
             userlist.append([userid, want])
             Discord.updatetags(userlist)
-            Discord.send_my_message("a", "Your tag is set")
+            Discord.send_my_message("a", "Your tag is set", channel)
             return
         else:
             for i in userlist:
                 user = i[0]
                 utag = i[1]
                 if utag == want and userid != user:
-                    Discord.send_my_message("a", "Oops! Try another tag, this one's taken!")
+                    Discord.send_my_message("a", "Oops! Try another tag, this one's taken!", channel)
                     return
                 elif (utag == want and userid == user) or (utag != want and userid == user):
                     updtag = "updated"
@@ -184,7 +206,7 @@ class Discord:
         newuserlist.append(both)
         userlist = newuserlist
         Discord.updatetags(userlist)
-        Discord.send_my_message("a", "Your tag is %s" % (updtag))
+        Discord.send_my_message("a", "Your tag is %s" % (updtag), channel)
 
     def discstrip(m):
         m = m.replace("**", "")
@@ -205,7 +227,7 @@ def LtoS(s):
 async def setstatus_async(a):
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="IRC and Discord"))
 
-async def send_my_message_async(message):
+async def send_my_message_async(message, channel):
     await channel.send(message.strip())
 
 
@@ -213,9 +235,11 @@ async def send_my_message_async(message):
 async def on_message(message):
     global settings
     global client
-    global channel
     global thread_lock
     global irc
+    global channelsets
+    ircchan = channelsets[str(message.channel.id)]
+    discordchan = message.channel
     mention = message.author.mention
     tag = Discord.reptag(mention, message.author.name)
     if tag == message.author.name:
@@ -270,7 +294,7 @@ async def on_message(message):
             if refauthor == client.user:
                 refcont = LtoS(refcont.split()[1:])
             pintoirc = "%s pinned a message: <%s> %s" % (tag, refauthorname, refcont)
-            irc.send_my_message(pintoirc)
+            irc.send_my_message(pintoirc, ircchan)
             return
     else:
         refid = 0
@@ -300,7 +324,7 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.channel != channel:
+    if str(message.channel.id) not in channelsets:
         return
 
 
@@ -312,9 +336,9 @@ async def on_message(message):
     wordz = content[-1]
     if content[0].lower() == "!tag":
         if len(content) > 1:
-            Discord.addusertag(mention, content[1])
+            Discord.addusertag(mention, content[1], discordchan)
         else:
-            Discord.sendtoboth("You didn't provide a tag. Usage: !tag mytaghere")
+            Discord.sendtoboth("You didn't provide a tag. Usage: !tag mytaghere", ircchan, discordchan)
     if len(message.attachments) > 0:
         url = message.attachments[0].url
     if (word1.startswith("_") and wordz.endswith("_")) or (word1.startswith("*") and wordz.endswith("*")):
@@ -323,7 +347,7 @@ async def on_message(message):
             content = word1[1:] + " " +  LtoS(content[1:len2]) + " " +  wordz[:-1] + " " +  url
         else:
             content = word1[1:][:-1] + " " + " " +  url
-        irc.send_my_message(refcont + "\x03" + "6" + chr(29) + "* %s %s%s" % (tag, content, chr(29)))
+        irc.send_my_message(refcont + "\x03" + "6" + chr(29) + "* %s %s%s" % (tag, content, chr(29)), ircchan)
     else:
         newname = tag[0] + "\u200b" +  tag[1:]
         newname = "\x02" + newname + "\x02"
@@ -336,30 +360,30 @@ async def on_message(message):
         content = regexc.sub("", content)
         if emptycontent == 1:
             emptycontent = 0
-            irc.send_my_message("%s <%s> %s" % (refcont, newname, url))
+            irc.send_my_message("%s <%s> %s" % (refcont, newname, url), ircchan)
             return
 
         splitcontent = content.split()
         if len(splitcontent) >= 1:
             if splitcontent[0] == ".tell":
                 edit = ".tell " + splitcontent[1] + " (from %s on Discord) " + LtoS(splitcontent[2:])
-                irc.send_my_message(edit % (newname))
+                irc.send_my_message(edit % (newname), ircchan)
                 return
-        irc.send_my_message("%s <%s> %s" % (refcont, newname, content))
+        irc.send_my_message("%s <%s> %s" % (refcont, newname, content), ircchan)
     iskarma = karma.caller(splitcontent, message.author.name)
     if iskarma:
-        Discord.sendtoboth(iskarma)
+        Discord.sendtoboth(iskarma, ircchan, discordchan)
     isweather = weather.caller(splitcontent, [message.author.name, message.author.mention])
     if isweather[0] == "error":
-        Discord.sendtoboth("Error: " + isweather[1])
+        Discord.sendtoboth("Error: " + isweather[1], ircchan, discordchan)
     elif isweather[0] == "success":
-        Discord.sendtoboth(isweather[1])
+        Discord.sendtoboth(isweather[1], ircchan, discordchan)
     stripcontent = Discord.discstrip(precontent).split()
     isword = word.caller(message.author.name, stripcontent)
     if isword[0] == "success":
-        Discord.sendtoboth(isword[1])
+        Discord.sendtoboth(isword[1], ircchan, discordchan)
     elif isword[0] == "error":
-        Discord.sendtoboth("Error: " + isword[1])
+        Discord.sendtoboth("Error: " + isword[1], ircchan, discordchan)
     botops = settings["botops"].split()
     NameIsBotOp = 0
     kickban = 0
@@ -368,27 +392,25 @@ async def on_message(message):
             NameIsBotOp = 1
     if NameIsBotOp:
         NameIsBotOp = 0
-        if content[0] in ["!kick", "!kickban", "!kb"]:
-            cmd = content[0]
+        if splitcontent[0] in ["!kick", "!kickban", "!kb"]:
+            cmd = splitcontent[0]
             if cmd == "!kickban" or cmd == "!kb":
                 kickban = 1
-            if len(content) < 2:
-                Discord.send_my_message("a", "You didn't provide a nick. USAGE: !kick nick [reason]")
+            if len(splitcontent) < 2:
+                Discord.send_my_message("a", "You didn't provide a nick. USAGE: !kick nick [reason]", discordchan)
                 return
-            elif len(content) >= 2:
-                if len(content) < 3:
+            elif len(splitcontent) >= 2:
+                if len(splitcontent) < 3:
                     kreason = "(Discord/" + message.author.name + ")" + " " + "No reason given"
                 else:
-                    kreason = "(Discord/" + message.author.name + ")" + " " + LtoS(content[2:])
-                knick = content[1]
-                print(kreason, knick)
-                irc.kicknick(knick, kreason, kickban)
-            #return
-    if content[0] == "!nicklist":
-        Discord.send_my_message("a", irc.nicklist())
+                    kreason = "(Discord/" + message.author.name + ")" + " " + LtoS(splitcontent[2:])
+                knick = splitcontent[1]
+                irc.kicknick(knick, kreason, kickban, ircchan)
+    if splitcontent[0] == "!nicklist":
+        Discord.send_my_message("a", irc.nicklist(ircchan), discordchan)
         return
     if userid == settings["botowner"]:
-        if content[0] == "!cutrelay":
+        if splitcontent[0] == "!cutrelay":
             await client.close()
             return
 
@@ -397,7 +419,6 @@ async def on_message(message):
 @client.event
 async def on_ready():
     global server
-    global channel
     global thread_lock
 
     with thread_lock:
@@ -432,7 +453,7 @@ async def on_ready():
             return
 
         server = findServer[0]
-
+'''
         if settings["channel"] == "":
             print("[Discord] You have not configured a channel to use in settings.json")
             print("[Discord] Please put one of the channel IDs listed below in settings.json")
@@ -444,7 +465,7 @@ async def on_ready():
             await client.close()
             return
 
-        findChannel = [x for x in server.channels if str(x.id) == settings["channel"] and x.type == discord.ChannelType.text]
+        findChannel = [x for x in server.channels if channelsets[str(x.id)] and x.type == discord.ChannelType.text]
         if not len(findChannel):
             print("[Discord] No channel could be found with the specified id: " + settings["server"])
             print("[Discord] Note that you can only use text channels.")
@@ -459,3 +480,4 @@ async def on_ready():
 
         channel = findChannel[0]
 
+'''
