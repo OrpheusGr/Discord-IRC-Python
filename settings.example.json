@@ -30,6 +30,7 @@
     },
     "channelsets": {
         "discord_channel_id_here": "irc channel name here, add more such lines for other channel pairs"
+    },
     "misc": {
         "weatherapikeys": ""
     }
