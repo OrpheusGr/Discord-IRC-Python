@@ -396,7 +396,9 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def on_action(self, connection, event):
         message = event.arguments[0].strip()
-        self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick)
+        channel = event.target.lower()
+        discordchan = self.discord.toch(self.channelsetsopp[channel])
+        self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick, channel)
         message = "_* {:s} {:s} _".format(\
             re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), message)
 
