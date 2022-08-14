@@ -16,7 +16,9 @@
         "chanservkick": 1,
         "ignores": "input here IRC nicks to be ignored seperated by spaces",
         "quitmsg": "Using DiscordIRC Python Bot",
-        "send_nick_list": "False"
+        "send_nick_list": "False",
+        "badwords": "put a list of words you consider bad here",
+        "warnexcept": "put a list of nicks that you want to be excepted from badword warnings/kicks"
     },
     "discord": {
         "token": "",

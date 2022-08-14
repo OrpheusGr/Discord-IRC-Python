@@ -97,15 +97,15 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def warnkickban(self, message, nick, channel):
         global warnlist
-        warnexcept = ["grandmom", "granddad", "elune", "skittle", "atheism", "drpoxenstein"]
+        warnexcept = self.settings["warnexcept"].split()
         if nick.lower() in warnexcept:
             return
         warns = 0
         message = message.lower()
         message = message.split()
-        badwords = ["nigger", "niger", "niggers", "nigers"]
+        badwords = self.settings["badwords"].split()
         for word in message:
-            if word in badwords:
+            if word.lower() in badwords:
                 for pair in warnlist:
                     user = pair[0]
                     if user == nick:
@@ -128,7 +128,7 @@ class IRC(irc.bot.SingleServerIRCBot):
                 if warns == 0:
                     addwarn = [nick, 1]
                     warnlist.append(addwarn)
-                    self.send_my_message(nick + ": Please avoid using such terms in " + channel + ". Excessive use will lead into a ban. Respect everyone :)")
+                    self.send_my_message(nick + ": Please avoid using such terms in " + channel + ". Excessive use will lead into a ban. Respect everyone :)", channel)
                     return
 
     def fromhost(self, host, part):
@@ -145,7 +145,6 @@ class IRC(irc.bot.SingleServerIRCBot):
     def kicknick(self, knick, kreason, ban, channel):
         chanservkick = self.settings["chanservkick"]
         isnick = self.isonchan(knick, channel)
-        print("kicknick", channel, isnick)
         if isnick == "True":
             if ban == 1:
                 if chanservkick == 1:
@@ -167,9 +166,7 @@ class IRC(irc.bot.SingleServerIRCBot):
     def isonchan(self, target, channel):
         global channelwho
         currchan = channelwho[channel]
-        print("ison", currchan)
         for pair in currchan:
-            print("ison",pair)
             nick = pair[0].lower()
             if nick == target.lower():
                 return "True"
@@ -224,24 +221,20 @@ class IRC(irc.bot.SingleServerIRCBot):
         if channel not in channelwho:
             channelwho[channel] = []
         channelwho[channel].append([nick, host])
-        print(channelwho)
 
     def updatechanwho(self, target, host, channel):
         global channelwho
         if channel not in channelwho:
             return
         currchan = channelwho[channel]
-        print(currchan)
         if host == "no":
             for pair in currchan:
                 nick = pair[0]
                 if nick == target:
                     actualhost = pair[1]
                     currchan.remove(pair)
-                    print(channelwho[channel])
                     return
         currchan.append([target, host])
-        print(channelwho[channel])
 
     def LtoS(self, s):
         string = " "

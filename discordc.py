@@ -255,7 +255,6 @@ async def on_message(message):
         refurl = ""
         refid = message.reference.message_id
         refinfo = await channel.fetch_message(refid)
-        print(refinfo)
         refcont = ircdressup(refinfo.clean_content.strip("\n"))
         if len(refinfo.attachments) > 0:
             refurl = refinfo.attachments[0].url
