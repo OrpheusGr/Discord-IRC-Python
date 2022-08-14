@@ -275,7 +275,7 @@ class IRC(irc.bot.SingleServerIRCBot):
         ircchan = event.target.lower()
         discordchan = self.discord.toch(self.channelsetsopp[ircchan])
         if nick != connection.get_nickname():
-            self.updatechanwho(nick, "no")
+            self.updatechanwho(nick, "no", ircchan)
             try:
                 reason = "(" + event.arguments[0] + ")"
             except IndexError:
