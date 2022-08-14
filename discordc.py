@@ -238,7 +238,10 @@ async def on_message(message):
     global thread_lock
     global irc
     global channelsets
-    ircchan = channelsets[str(message.channel.id)]
+    try:
+        ircchan = channelsets[str(message.channel.id)]
+    except:
+        ircchan = ""
     discordchan = message.channel
     mention = message.author.mention
     tag = Discord.reptag(mention, message.author.name)
@@ -323,7 +326,7 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if str(message.channel.id) not in channelsets:
+    if not ircchan:
         return
 
 
