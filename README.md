@@ -29,7 +29,7 @@ https://discordapp.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot&permission
 - I have tried to make the bot relay the content in a way that looks as close as possible to actual IRC.
 - The content of messages is relayed as is, with small adjustments to show custom emoji names on IRC instead of the raw version.
 
-- You can mention Discord users from within IRC (only if they've set a custom tag word, which will also show as their Discord "name" on IRC) To set a custom tag do !tag <tag> on a discord channel that's being relayed. (without the <>) (e.g If i set my tag to "Orf" my relayed messages will show me as Orf instead of my real Discord name and you can then use @Orf on IRC  to mention me on Discord)
+- You can mention Discord users from within IRC (only if they've set a custom tag word, which will also show as their Discord "name" on IRC) To set a custom tag do !tag \<tag> on a discord channel that's being relayed. (without the <>) (e.g If i set my tag to "Orf" my relayed messages will show me as Orf instead of my real Discord name and you can then use @Orf on IRC  to mention me on Discord)
 
 - All relayed messages/events (channel messages, actions, joins, parts, quits, kicks) are relayed with a timestamp (Discord feat) that is seen by each Discord user as their own time, to enchance the feeling of classic IRC.
 
