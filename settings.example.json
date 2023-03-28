@@ -31,7 +31,7 @@
         "send_nick_list": ""
     },
     "channelsets": {
-        "discord_channel_id_here": "irc channel name here, add more such lines for other channel pairs"
+        "discord_channel_id_here": "#irc-channel-name-here, webhook-url-here"
     },
     "misc": {
         "weatherapikeys": ""

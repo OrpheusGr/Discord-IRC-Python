@@ -64,16 +64,16 @@ class Discord:
         global channelsets
         for i in channelsets:
             g = self.toch(i)
-            Discord.send_my_message("a", message, g)
+            Discord.send_my_message("a", message, g, 1)
 
     def sendtoboth(message, ircchan, discordchan):
-        Discord.send_my_message("a", message, discordchan)
+        Discord.send_my_message("a", message, discordchan, 1)
         irc.send_my_message(message, ircchan)
 
     def send_list(self, channel):
         global channelsetsopp
         if settings["send_nick_list"] == "False":
-            Discord.send_my_message("a", "Command is disabled", channelsetsopp[channel])
+            Discord.send_my_message("a", "Command is disabled", channelsetsopp[channel], 1)
             return
         irclist = "Discord users with IRC role:"
         for member in server.members:
@@ -89,7 +89,7 @@ class Discord:
         if irclist == "Discord users with IRC role:":
             irc.send_my_message("No users with the IRC role found.", channel)
             return
-        Discord.send_my_message("a", "**Forwarding members that have the IRC role.**", channelsetsopp[channel])
+        Discord.send_my_message("a", "**Forwarding members that have the IRC role.**", channelsetsopp[channel], 1)
         irc.send_my_message(irclist, channel)
 
     def toch(self, chid):
@@ -98,19 +98,24 @@ class Discord:
         channel = client.get_channel(chid)
         return channel
 
-    def send_my_message(self, message, channel):
+    def send_my_message(self, message, channel, sys):
         global client
         global userlist
         newtags = []
         now = str(int( time.time() ))
         timestamp = "<t:" + now + ":T>"
-        if message.count("\x02") % 2 != 0:
+        if message.count("***") % 2 != 0:
+            message = message + "***"
+        if message.count("**") % 2 != 0:
             message = message + "**"
         if message.count(chr(29)) % 2 != 0:
             message = message + "*"
-        message = message.replace("\x02", "**")
-        message = message.replace(chr(29), "*")
+        #message = message.replace("\x02", "**")
+        #message = message.replace(chr(29), "*")
         message = message.replace("[bold]", "**")
+        message = message.replace("_*", "*")
+        message = message.replace("_**", "**")
+        message = message.replace("_***", "***")
         message = irc.stripcolors(message)
         tags = message.split()
         for word in tags:
@@ -122,6 +127,8 @@ class Discord:
                         word = pair[0]
             newtags.append(word)
         message = LtoS(newtags)
+        if not sys:
+            return message
         message = timestamp + " " + message
         asyncio.run_coroutine_threadsafe(send_my_message_async(message, channel), client.loop)
 
@@ -186,14 +193,14 @@ class Discord:
         if len(userlist) == 0:
             userlist.append([userid, want])
             Discord.updatetags(userlist)
-            Discord.send_my_message("a", "Your tag is set", channel)
+            Discord.send_my_message("a", "Your tag is set", channel, 1)
             return
         else:
             for i in userlist:
                 user = i[0]
                 utag = i[1]
                 if utag == want and userid != user:
-                    Discord.send_my_message("a", "Oops! Try another tag, this one's taken!", channel)
+                    Discord.send_my_message("a", "Oops! Try another tag, this one's taken!", channel, 1)
                     return
                 elif (utag == want and userid == user) or (utag != want and userid == user):
                     updtag = "updated"
@@ -206,7 +213,7 @@ class Discord:
         newuserlist.append(both)
         userlist = newuserlist
         Discord.updatetags(userlist)
-        Discord.send_my_message("a", "Your tag is %s" % (updtag), channel)
+        Discord.send_my_message("a", "Your tag is %s" % (updtag), channel, 1)
 
     def discstrip(m):
         m = m.replace("**", "")
@@ -238,8 +245,13 @@ async def on_message(message):
     global thread_lock
     global irc
     global channelsets
+    mywebhookfound = 0
+    discordchanwh = channelsets[str(message.channel.id)].split(",")[1]
+    whid = discordchanwh.split("/")[5]
+    if str(message.webhook_id) == whid:
+        return
     try:
-        ircchan = channelsets[str(message.channel.id)]
+        ircchan = channelsets[str(message.channel.id)].split(",")[0]
     except:
         ircchan = ""
     discordchan = message.channel
@@ -258,6 +270,8 @@ async def on_message(message):
         refurl = ""
         refid = message.reference.message_id
         refinfo = await discordchan.fetch_message(refid)
+        if str(refinfo.webhook_id) == whid:
+            mywebhookfound = 1
         refcont = ircdressup(refinfo.clean_content.strip("\n"))
         if len(refinfo.attachments) > 0:
             refurl = refinfo.attachments[0].url
@@ -285,7 +299,7 @@ async def on_message(message):
                 refauthorname = refauthornick
         else:
             refauthorname = reftag
-        if refauthorbot:
+        if refauthorbot and mywebhookfound == 0:
             refauthorname = refauthorname + "\x03" + "00,12" + "BOT" + "\x0f"
         if msgrefpin == False:
             if refauthor == client.user:
@@ -372,7 +386,7 @@ async def on_message(message):
                 irc.send_my_message(edit % (newname), ircchan)
                 return
         irc.send_my_message("%s <%s> %s" % (refcont, newname, content), ircchan)
-    iskarma = karma.caller(splitcontent, message.author.name)
+    iskarma = karma.caller(content.split(), message.author.name)
     if iskarma:
         Discord.sendtoboth(iskarma, ircchan, discordchan)
     isweather = weather.caller(splitcontent, [message.author.name, message.author.mention])
@@ -399,7 +413,7 @@ async def on_message(message):
             if cmd == "!kickban" or cmd == "!kb":
                 kickban = 1
             if len(splitcontent) < 2:
-                Discord.send_my_message("a", "You didn't provide a nick. USAGE: !kick nick [reason]", discordchan)
+                Discord.send_my_message("a", "You didn't provide a nick. USAGE: !kick nick [reason]", discordchan, 1)
                 return
             elif len(splitcontent) >= 2:
                 if len(splitcontent) < 3:
@@ -409,7 +423,7 @@ async def on_message(message):
                 knick = splitcontent[1]
                 irc.kicknick(knick, kreason, kickban, ircchan)
     if splitcontent[0] == "!nicklist":
-        Discord.send_my_message("a", irc.nicklist(ircchan), discordchan)
+        Discord.send_my_message("a", irc.nicklist(ircchan), discordchan, 1)
         return
     if userid == settings["botowner"]:
         if splitcontent[0] == "!cutrelay":

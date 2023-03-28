@@ -8,6 +8,7 @@ import wordcounter
 word = wordcounter
 import karmamodule
 karma = karmamodule
+from discord_webhook import DiscordWebhook
 
 # Thanks to Alak Yadav for text_wrapper.py that solved my long messages problems -Orfeas
 # https://gist.githubusercontent.com/alakyadav/e3e33549b0a290cabcaee9686753fe03/raw/0dfe99803988adc0aef60cdefc5ba1839c000ce7/text_wrapper.py
@@ -17,7 +18,6 @@ karma = karmamodule
 class IRC(irc.bot.SingleServerIRCBot):
     thread_lock = None
     running = True
-
     settings = None
     connection = None
     discord = None
@@ -35,8 +35,9 @@ class IRC(irc.bot.SingleServerIRCBot):
         self.channelsets = settings["channelsets"]
         self.channelsetsopp = {}
         for c in self.channelsets:
-            nc = self.channelsets[c].lower()
-            self.channelsetsopp[nc] = c
+            nc = self.channelsets[c].split(",")[0].lower()
+            self.channelsetsopp[nc] = c + ", " + self.channelsets[c].split(",")[1]
+            print(nc, ">", self.channelsetsopp[nc])
             self.channelsets[c] = self.channelsets[c].lower()
         ssl_kwargs = {"connect_factory": ssl_factory}
         if self.settings["ssl"] == "True":
@@ -273,7 +274,7 @@ class IRC(irc.bot.SingleServerIRCBot):
     def on_part(self, connection, event):
         nick = event.source.nick
         ircchan = event.target.lower()
-        discordchan = self.discord.toch(self.channelsetsopp[ircchan])
+        discordchan = self.discord.toch(self.channelsetsopp[ircchan].split(",")[0])
         if nick != connection.get_nickname():
             self.updatechanwho(nick, "no", ircchan)
             try:
@@ -281,36 +282,36 @@ class IRC(irc.bot.SingleServerIRCBot):
             except IndexError:
                 reason = ""
             message = "<- **%s just left %s %s**" % (nick, ircchan, reason)
-            self.discord.send_my_message(message, discordchan)
+            self.discord.send_my_message(message, discordchan, 1)
 
 
     def on_quit(self, connection, event):
         nick = event.source.nick
         if nick != connection.get_nickname():
             try:
-                reason = event.arguments[0]
+                reason = "(" + event.arguments[0] + ")"
             except:
                 reason = ""
-            message = "<- **%s just quit %s (%s)**" % (nick, network, reason)
+            message = "<- **%s just quit %s %s**" % (nick, network, reason)
             for ch in channelwho:
                 currchan = channelwho[ch]
                 for pair in currchan:
                     if nick == pair[0]:
                         self.updatechanwho(nick, "no", ch)
-                        discordchan = self.discord.toch(self.channelsetsopp[ch])
-                        self.discord.send_my_message(message, discordchan)
+                        discordchan = self.discord.toch(self.channelsetsopp[ch].split(",")[0])
+                        self.discord.send_my_message(message, discordchan, 1)
 
     def on_kick(self, connection, event):
         nick = event.source.nick
         knick = event.arguments[0]
         channel = event.target.lower()
-        discordchan = self.discord.toch(self.channelsetsopp[channel])
+        discordchan = self.discord.toch(self.channelsetsopp[channel].split(",")[0])
         self.updatechanwho(knick, "no", channel)
         try:
             extras = "(" + event.arguments[1] + ")"
         except IndexError:
             extras = ""
-        self.discord.send_my_message("**%s kicked %s %s**" % (nick, knick, extras), discordchan)
+        self.discord.send_my_message("**%s kicked %s %s**" % (nick, knick, extras), discordchan, 1)
         if knick == connection.get_nickname():
             self.connection.privmsg("Chanserv", "unban " + channel)
             time.sleep(2)
@@ -319,16 +320,16 @@ class IRC(irc.bot.SingleServerIRCBot):
     def on_join(self, connection, event):
         nick = event.source.nick
         channel = event.target.lower()
-        discordchan = self.discord.toch(self.channelsetsopp[channel])
+        discordchan = self.discord.toch(self.channelsetsopp[channel].split(",")[0])
         if nick == connection.get_nickname():
             with self.thread_lock:
                 print("[IRC] Joined " + channel)
             self.connection.who(channel)
-            self.discord.send_my_message("**DiscIRC is now up and running!**", discordchan)
+            self.discord.send_my_message("**DiscIRC is now up and running!**", discordchan, 1)
         else:
             self.updatechanwho(nick, event.source.host, channel)
             message = "-> **%s just joined %s**" %  (nick, channel)
-            self.discord.send_my_message(message, discordchan)
+            self.discord.send_my_message(message, discordchan, 1)
 
     def on_nick(self, connection, event):
         nick = event.source.nick
@@ -339,23 +340,74 @@ class IRC(irc.bot.SingleServerIRCBot):
             currchan = channelwho[ch]
             for pair in currchan:
                 if nick == pair[0]:
-                    discordchan = self.discord.toch(self.channelsetsopp[ch])
-                    self.discord.send_my_message(event_msg, discordchan)
+                    discordchan = self.discord.toch(self.channelsetsopp[ch].split(",")[0])
+                    self.discord.send_my_message(event_msg, discordchan, 1)
                     self.updatechanwho(event.source.nick, "no", ch)
                     self.updatechanwho(newnick, event.source.host, ch)
 
     def stripcolors(self, m):
-        m = m.replace("\x02", "")
-        m = m.replace("\x0f", "")
-        m = m.replace(chr(31), "")
-        m = m.replace(chr(29), "")
+        m = m.replace("\x31", "")
+        mdict = {}
+        mdict["\x02"] = 0
+        mdict["\x1d"] = 0
+        for i in range(len(m)):
+            if m[i:i+3] == "\x02":
+                if "\x02" not in mdict:
+                    mdict["\x02"] = 1
+                else:
+                    mdict["\x02"] = 0
+                i += 4
+            elif m[i:i+3] == "\x1d":
+                if "\x1d" not in mdict:
+                    mdict["\x1d"] = 1
+                else:
+                    mdict["\x1d"] = 0
+            elif m[i:i+3] == "\x0f":
+                if mdict["\x02"] == 1 and mdict["\x1d"] == 1:
+                    m = m[0:i-1] + "\x02\x1d" + m[i+4:]
+                    i += 7
+                else:
+                    if mdict["\x02"] == 1:
+                        m = m[0:i-1] + "\x02" + m[i+4:]
+                        i += 4
+                    elif mdict["\x1d"] == 1:
+                        m = m[0:i-1] + "\x1d" + m[i+4:]
+                        i += 4
+        xtwoxoned = m.count("\x02\x1d")
+        xonedxtwo = m.count("\x1d\x02")
+        while xtwoxoned > 1 or xonedxtwo > 1:
+            pp = "\x1d\x02" * xonedxtwo
+            pr = "\x02\x1d" * xtwoxoned
+            if pr in m:
+                m = m.replace(pr, "\x02\x1d")
+            if pp in m:
+                m = m.replace(pp, "\x1d\x02")
+            xtwoxoned -= 1
+            xonedxtwo -= 1
+        xtwo = m.count("\x02")
+        while xtwo > 1:
+            pr = "\x02" * xtwo
+            if pr in m:
+                m = m.replace(pr, "\x02")
+            xtwo -= 1
+        xoned = m.count("\x1d")
+        while xoned > 1:
+            pr = "\x1d" * xoned
+            if pr in m:
+               m = m.replace(pr, "\x1d")
+            xoned -= 1
+        m = m.replace("\x02\x1d", "***")
+        m = m.replace("\x1d\x02", "***")
+        m = m.replace("\x02", "**")
+        m = m.replace("\x1d", "*")
         regexc = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
         m = regexc.sub("", m)
         return m
 
     def on_pubmsg(self, connection, event):
         channel = event.target.lower()
-        discordchan = self.discord.toch(self.channelsetsopp[channel])
+        discordchan = self.discord.toch(self.channelsetsopp[channel].split(",")[0])
+        discordchanwh = self.channelsetsopp[channel].split(",")[1]
         isweather = []
         for nick in ignores:
             if nick == event.source.nick:
@@ -366,8 +418,10 @@ class IRC(irc.bot.SingleServerIRCBot):
         msg = msg.split()
         msg_string = self.LtoS(msg)
         sender = event.source.nick
-        message = "<**%s**> %s" % (sender, msg_string)
-        self.discord.send_my_message(message, discordchan)
+        message = msg_string
+        message = self.discord.send_my_message(message, discordchanwh, 0)
+        webhook = DiscordWebhook(url=discordchanwh, content=message, username=sender)
+        response = webhook.execute()
         self.warnkickban(msg_string, sender, channel)
         with self.thread_lock:
             print("[IRC] <%s> %s" % (sender, msg_string))
@@ -396,17 +450,23 @@ class IRC(irc.bot.SingleServerIRCBot):
 
     def on_action(self, connection, event):
         message = event.arguments[0].strip()
+        message = message.strip("\x02")
+        message = message.strip("\x0f")
+        message = message.strip("\x1d")
+        message = message.strip("\x31")
+        message = "*" + message + "*"
         channel = event.target.lower()
-        discordchan = self.discord.toch(self.channelsetsopp[channel])
+        discordchan = self.discord.toch(self.channelsetsopp[channel].split(",")[0])
+        discordchanwh = self.channelsetsopp[channel].split(",")[1]
         self.warnkickban(self.LtoS(event.arguments[0:]), event.source.nick, channel)
-        message = "_* {:s} {:s} _".format(\
-            re.sub(r"(]|-|\\|[`*_{}[()#+.!])", r'\\\1', event.source.nick), message)
 
         with self.thread_lock:
-            print("[IRC] " + message)
+            print("[IRC] ACTION  " + event.source.nick + " " + message)
 
 
-        self.discord.send_my_message(message, discordchan)
+        message = self.discord.send_my_message(message, discordchanwh, 0)
+        webhook = DiscordWebhook(url=discordchanwh, content=message, username=event.source.nick)
+        response = webhook.execute()
 
     def run(self):
         self.start()

@@ -19,19 +19,20 @@ https://discordapp.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot&permission
 (change CLIENT_ID to your application's client_id)
 
 ## Features
+- Webhook support. The bot will now use a webhook to post messages from IRC to Discord.The benefit is it will look almost as a real Discord user is sending the message, making it less of a wall of text.  You will have to create a webhook for every channel that you wish to be relayed. Read more on how to let the bot use the webhooks.
+
 - Multi channel. You can set your bot to work on sets of IRC and Discord channels.
--   A channel set should be put in the channelsets section of settings.json. The item should be the Discord channel's id and its value should be the IRC channel name. ("92929388305": "#potatos")  That way you can have diff discord channels be relayed to diff IRC channels and vice versa.
+-   A channel set should be put in the channelsets section of settings.json. The item should be the Discord channel's id and its value should be the IRC channel name, followed by the Discord channel's webhook, URL. ("92929388305": "#potatos, https://discord.com/api/webhooks/..." )  That way you can have diff discord channels be relayed to diff IRC channels and vice versa. You can copy a webhook's URL in  the webhook list of your server.
 
 -   (For example you could make a Discord channel for every IRC channel and have some sort of "link" between your Discord and IRC server. Just an example.)  
 
-- Simple SSL support to connect the bot to IRC using SSL, if you wish to. (On/Off settings in settings.json irc section, don't forget to set the port to an ssl enabled one listed on the network you are connectiing it to.)
+- Simple SSL support to connect the bot to IRC using SSL, if you wish to. (On/Off settings in settings.json irc section, don't forget to set the port to an ssl enabled one listed on the network you are connecting it to.)
 
-- I have tried to make the bot relay the content in a way that looks as close as possible to actual IRC.
 - The content of messages is relayed as is, with small adjustments to show custom emoji names on IRC instead of the raw version.
 
 - You can mention Discord users from within IRC (only if they've set a custom tag word, which will also show as their Discord "name" on IRC) To set a custom tag do !tag \<tag> on a discord channel that's being relayed. (without the <>) (e.g If i set my tag to "Orf" my relayed messages will show me as Orf instead of my real Discord name and you can then use @Orf on IRC  to mention me on Discord)
 
-- All relayed messages/events (channel messages, actions, joins, parts, quits, kicks) are relayed with a timestamp (Discord feat) that is seen by each Discord user as their own time, to enchance the feeling of classic IRC.
+- All relayed events from IRC to Discord (actions, joins, parts, quits, kicks) are relayed with a timestamp (Discord feat) that is seen by each Discord user as their own time, to enchance the feeling of classic IRC.
 
 - Relayed Replies. When a Discord user replies to a Discord message the replied message and the reply are shown in IRC for clarity of IRC users. You may also reply to a relayed message which will be shown to IRC without the prefixed timestamp (again for clarity)
 
@@ -47,8 +48,8 @@ https://discordapp.com/oauth2/authorize?client_id=CLIENT_ID&scope=bot&permission
 
 ## Running and setting up details
 Just launch the bot using `python3 main.py`.
-- To quit the bot, type `!cutrelay` in the IRC or Discord channel. (Your IRC nick or Discord id must be set as "botowner" in settings.json irc or discord section respectively.)
-- If you want to make use of the weather module you need an AccuWeather API key(s) which you can obtain for free in https://developer.accuweather.com/  Once you've done that you need to input your key in settings.json in the misc section ("apikey": "your key here")
+- To quit the bot, type `!cutrelay` in the relayed IRC or Discord channels. (Your IRC nick or Discord id must be set as "botowner" in settings.json irc or discord section respectively.)
+- If you want to make use of the weather module you need (an) AccuWeather API key(s) which you can obtain for free in https://developer.accuweather.com/  Once you've done that you need to input your key in settings.json in the misc section ("apikey": "your key here")
 
 ## Licence
 
