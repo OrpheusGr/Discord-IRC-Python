@@ -9,7 +9,8 @@ Install the following python libraries using pip:
 
 - irc
 - discord.py
-- (Optional for the weather module to work) requests (https://pypi.org/project/requests/)
+- discord-webhook
+- requests
 
 Download the code from this repository, then copy `settings.example.json` to `settings.json` and configure it.
 
