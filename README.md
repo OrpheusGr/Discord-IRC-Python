@@ -1,3 +1,5 @@
+#This fork is no longer maintained or developed. Check out my new project at https://github.com/OrpheusGr/DiscIRC-Relay
+
 # Discord-IRC-Python
 Multi-channel bot that syncs messages between Discord and IRC purely written in Python
 
